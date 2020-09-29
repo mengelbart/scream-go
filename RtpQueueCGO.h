@@ -11,13 +11,13 @@
 extern "C" {
 #endif
 
-    void goClear(int id);
-    int goSizeOfNextRtp();
-    int goSeqNrOfNextRtp();
-    int goBytesInQueue();
-    int goSizeOfQueue();
-    float goGetDelay(float currTs);
-    int goSetSizeOfLastFrame();
+    void goClear(int);
+    int goSizeOfNextRtp(int);
+    int goSeqNrOfNextRtp(int);
+    int goBytesInQueue(int);
+    int goSizeOfQueue(int);
+    float goGetDelay(int, float);
+    int goGetSizeOfLastFrame(int);
 
 #ifdef __cplusplus
 }

@@ -12,26 +12,26 @@ void RtpQueueCGO::clear() {
 }
 
 int RtpQueueCGO::sizeOfNextRtp() {
-    return goSiz;
+    return goSizeOfNextRtp(this->id);
 }
 
 int RtpQueueCGO::seqNrOfNextRtp() {
-    return 0;
+    return goSeqNrOfNextRtp(this->id);
 }
 
 int RtpQueueCGO::bytesInQueue() {
-    return 0;
+    return goBytesInQueue(this->id);
 }
 
 int RtpQueueCGO::sizeOfQueue() {
-    return 0;
+    return goSizeOfQueue(this->id);
 }
 
 float RtpQueueCGO::getDelay(float currTs) {
-    return 0.0;
+    return goGetDelay(this->id, currTs);
 }
 
 int RtpQueueCGO::getSizeOfLastFrame() {
-    return 0;
+    return goGetSizeOfLastFrame(this->id);
 }
 
