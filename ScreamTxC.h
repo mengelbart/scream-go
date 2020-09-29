@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2020 Mathis Engelbart All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+
 #ifndef SCREAM_TX_H
 #define SCREAM_TX_H
 
