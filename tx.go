@@ -10,7 +10,11 @@ package scream
 */
 import "C"
 
-func New() *Tx {
+type Tx struct {
+	screamTx *C.ScreamTxC
+}
+
+func NewTx() *Tx {
 	return &Tx{
 		screamTx: C.ScreamTxInit(),
 	}
@@ -93,8 +97,4 @@ func goGetDelay(id C.int, currTs C.float) C.float {
 //export goGetSizeOfLastFrame
 func goGetSizeOfLastFrame(id C.int) C.int {
 	return C.int(rtpQueues[int(id)].GetSizeOfLastFrame())
-}
-
-type Tx struct {
-	screamTx *C.ScreamTxC
 }
