@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include <cstdlib>
+
 #include "ScreamRx.h"
 #include "ScreamRxC.h"
 
@@ -33,7 +35,27 @@ bool ScreamRxIsFeedback(ScreamRxC* s, unsigned int time_ntp) {
     return srx->isFeedback(time_ntp);
 }
 
-bool ScreamRxGetFeedback(ScreamRxC* s, unsigned int time_ntp, bool isMark, unsigned char *buf, int size) {
+Feedback* ScreamRxGetFeedback(ScreamRxC* s, unsigned int time_ntp, bool isMark) {
     ScreamRx* srx = (ScreamRx*) s;
-    return srx->createStandardizedFeedback(time_ntp, isMark, buf, size);
+
+    Feedback *fb = (Feedback*)malloc(sizeof(Feedback));
+    unsigned char buf[2000];
+    int fb_size = -1;
+    fb->result = srx->createStandardizedFeedback(time_ntp, isMark, buf, fb_size);
+    fb->size = fb_size;
+    fb->buf = buf;
+    return fb;
 }
+
+bool ScreamRxGetFeedbackResult(Feedback* fb) {
+    return fb->result;
+}
+
+int ScreamRxGetFeedbackSize(Feedback* fb) {
+    return fb->size;
+}
+
+unsigned char* ScreamRxGetFeedbackBuffer(Feedback* fb) {
+    return fb->buf;
+}
+

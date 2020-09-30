@@ -33,6 +33,10 @@ extern "C" {
     float ScreamTxAddTransmitted(ScreamTxC*, unsigned int, unsigned int, int, unsigned int, bool);
     void ScreamTxIncomingStdFeedback(ScreamTxC*,
         unsigned int,
+        void*,
+        int size);
+    void ScreamTxIncomingFeedback(ScreamTxC*,
+        unsigned int,
         int,
         unsigned int,
         unsigned int,

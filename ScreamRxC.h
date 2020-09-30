@@ -14,13 +14,23 @@ extern "C" {
 
 #include <stdbool.h>
 
+    typedef struct {
+        int size;
+        unsigned char* buf;
+        bool result;
+    } Feedback;
+
     typedef void* ScreamRxC;
     ScreamRxC* ScreamRxInit(int ssrc);
     void ScreamRxFree(ScreamRxC*);
 
     void ScreamRxReceive(ScreamRxC*, unsigned int, void*, unsigned int, int, unsigned int, unsigned char);
     bool ScreamRxIsFeedback(ScreamRxC*, unsigned int);
-    bool ScreamRxGetFeedback(ScreamRxC*, unsigned int, bool, unsigned char *, int);
+    Feedback* ScreamRxGetFeedback(ScreamRxC*, unsigned int, bool);
+
+    bool ScreamRxGetFeedbackResult(Feedback*);
+    int ScreamRxGetFeedbackSize(Feedback*);
+    unsigned char* ScreamRxGetFeedbackBuffer(Feedback*);
 
 #ifdef __cplusplus
 }

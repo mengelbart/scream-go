@@ -7,6 +7,7 @@ package scream
 /*
 #cgo CPPFLAGS: -Wno-overflow -Wno-write-strings
 #include "ScreamTxC.h"
+#include <stdlib.h>
 */
 import "C"
 
@@ -20,7 +21,6 @@ func NewTx() *Tx {
 	}
 }
 
-// TODO: Implement RtpQueueInterface handling
 func (t *Tx) RegisterNewStream(rtpQueue RTPQueue, ssrc uint, priority, minBitrate, startBitrate, maxBitrate float64) {
 	id := nextRTPQueueID()
 	rtpQueues[id] = rtpQueue
@@ -40,8 +40,14 @@ func (t *Tx) AddTransmitted(timeNTP uint, ssrc uint, size int, seqNr uint, isMar
 	return float64(C.ScreamTxAddTransmitted(t.screamTx, C.uint(timeNTP), C.uint(ssrc), C.int(size), C.uint(seqNr), C.bool(isMark)))
 }
 
-func (t *Tx) IncomingStandardizedFeedback(timeNTP uint, streamID int, timestamp uint, seqNr uint, ceBits byte, isLast bool) {
-	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(timeNTP), C.int(streamID), C.uint(timestamp), C.uint(seqNr), C.uchar(ceBits), C.bool(isLast))
+func (t *Tx) IncomingStandardizedFeedback(timeNTP uint, buf []byte) {
+	b := C.CBytes(buf)
+	defer C.free(b)
+	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(timeNTP), b, C.int(len(buf)))
+}
+
+func (t *Tx) IncomingFeedback(timeNTP uint, streamID int, timestamp uint, seqNr uint, ceBits byte, isLast bool) {
+	C.ScreamTxIncomingFeedback(t.screamTx, C.uint(timeNTP), C.int(streamID), C.uint(timestamp), C.uint(seqNr), C.uchar(ceBits), C.bool(isLast))
 }
 
 func (t *Tx) GetTargetBitrate(ssrc uint) float64 {

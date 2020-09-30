@@ -7,8 +7,10 @@ package scream
 /*
 #cgo CPPFLAGS: -Wno-overflow -Wno-write-strings
 #include "ScreamRxC.h"
+#include <stdlib.h>
 */
 import "C"
+import "unsafe"
 
 type Rx struct {
 	screamRx *C.ScreamRxC
@@ -20,16 +22,23 @@ func NewRx() *Rx {
 	}
 }
 
+// Receive needs to be called when new packets are received
 // TODO: Determine better type for rtpPacket, convert to Cpointer and pass it to C
-func (r *Rx) receive(timeNTP uint, rtpPacket interface{}, ssrc int, size int, seqNr int, ceBits uint8) {
+func (r *Rx) Receive(timeNTP uint, rtpPacket interface{}, ssrc int, size int, seqNr int, ceBits uint8) {
 	C.ScreamRxReceive(r.screamRx, C.uint(timeNTP), nil, C.uint(ssrc), C.int(size), C.uint(seqNr), C.uchar(ceBits))
 }
 
-func (r *Rx) isFeedback(timeNTP uint) bool {
+func (r *Rx) IsFeedback(timeNTP uint) bool {
 	return bool(C.ScreamRxIsFeedback(r.screamRx, C.uint(timeNTP)))
 }
 
-// TODO: replace buffer by real memory pointer
-func (r *Rx) createStandardizedFeedback(timeNTP uint, isMark bool, buf uint8, size int) bool {
-	return bool(C.ScreamRxGetFeedback(r.screamRx, C.uint(timeNTP), C.bool(isMark), nil, C.int(size)))
+// CreateStandardizedFeedback creates a feedback packet according to
+// https://tools.ietf.org/wg/avtcore/draft-ietf-avtcore-cc-feedback-message/
+func (r *Rx) CreateStandardizedFeedback(timeNTP uint, isMark bool) (bool, []byte) {
+	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint(timeNTP), C.bool(isMark))
+	defer C.free(unsafe.Pointer(ret))
+	size := C.ScreamRxGetFeedbackSize(ret)
+	buf := C.ScreamRxGetFeedbackBuffer(ret)
+	bs := C.GoBytes(unsafe.Pointer(buf), size)
+	return bool(C.ScreamRxGetFeedbackResult(ret)), bs
 }

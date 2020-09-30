@@ -57,6 +57,15 @@ float ScreamTxAddTransmitted(ScreamTxC* s, unsigned int time_ntp, unsigned int s
 
 void ScreamTxIncomingStdFeedback(ScreamTxC* s,
         unsigned int time_ntp,
+        void* buf,
+        int size) {
+    ScreamTx* stx = (ScreamTx*) s;
+    unsigned char* chptr =  (unsigned char*) buf;
+    stx->incomingStandardizedFeedback(time_ntp, chptr, size);
+}
+
+void ScreamTxIncomingFeedback(ScreamTxC* s,
+        unsigned int time_ntp,
         int streamId,
         unsigned int timestamp,
         unsigned int seqNr,
