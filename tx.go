@@ -10,6 +10,10 @@ package scream
 #include <stdlib.h>
 */
 import "C"
+import (
+	"log"
+	"sync"
+)
 
 type Tx struct {
 	screamTx *C.ScreamTxC
@@ -64,43 +68,63 @@ type RTPQueue interface {
 	GetSizeOfLastFrame() int
 }
 
+var srcPipelinesLock sync.Mutex
 var rtpQueues = map[int]RTPQueue{}
+var nextPipelineID = 0
 
 func nextRTPQueueID() int {
-	return 0
+	defer func() {
+		nextPipelineID++
+	}()
+	return nextPipelineID
 }
 
 //export goClear
 func goClear(id C.int) {
+	srcPipelinesLock.Lock()
+	defer srcPipelinesLock.Unlock()
+	log.Println("Clear queue")
 	rtpQueues[int(id)].Clear()
 }
 
 //export goSizeOfNextRtp
 func goSizeOfNextRtp(id C.int) C.int {
+	srcPipelinesLock.Lock()
+	defer srcPipelinesLock.Unlock()
 	return C.int(rtpQueues[int(id)].SizeOfNextRTP())
 }
 
 //export goSeqNrOfNextRtp
 func goSeqNrOfNextRtp(id C.int) C.int {
+	srcPipelinesLock.Lock()
+	defer srcPipelinesLock.Unlock()
 	return C.int(rtpQueues[int(id)].SeqNrOfNextRTP())
 }
 
 //export goBytesInQueue
 func goBytesInQueue(id C.int) C.int {
+	srcPipelinesLock.Lock()
+	defer srcPipelinesLock.Unlock()
 	return C.int(rtpQueues[int(id)].BytesInQueue())
 }
 
 //export goSizeOfQueue
 func goSizeOfQueue(id C.int) C.int {
+	srcPipelinesLock.Lock()
+	defer srcPipelinesLock.Unlock()
 	return C.int(rtpQueues[int(id)].SizeOfQueue())
 }
 
 //export goGetDelay
 func goGetDelay(id C.int, currTs C.float) C.float {
+	srcPipelinesLock.Lock()
+	defer srcPipelinesLock.Unlock()
 	return C.float(rtpQueues[int(id)].GetDelay(float64(currTs)))
 }
 
 //export goGetSizeOfLastFrame
 func goGetSizeOfLastFrame(id C.int) C.int {
+	srcPipelinesLock.Lock()
+	defer srcPipelinesLock.Unlock()
 	return C.int(rtpQueues[int(id)].GetSizeOfLastFrame())
 }
