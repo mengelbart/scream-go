@@ -16,9 +16,9 @@ type Rx struct {
 	screamRx *C.ScreamRxC
 }
 
-func NewRx() *Rx {
+func NewRx(ssrc uint) *Rx {
 	return &Rx{
-		screamRx: C.ScreamRxInit(0),
+		screamRx: C.ScreamRxInit(C.uint(ssrc)),
 	}
 }
 

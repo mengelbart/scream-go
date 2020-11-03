@@ -13,6 +13,7 @@ import "C"
 import (
 	"log"
 	"sync"
+	"unsafe"
 )
 
 type Tx struct {
@@ -56,6 +57,12 @@ func (t *Tx) IncomingFeedback(timeNTP uint, streamID int, timestamp uint, seqNr 
 
 func (t *Tx) GetTargetBitrate(ssrc uint) float64 {
 	return float64(C.ScreamTxGetTargetBitrate(t.screamTx, C.uint(ssrc)))
+}
+
+func (t *Tx) GetStatistics(timeNTP uint) string {
+	buf := C.ScreamTxGetStatistics(t.screamTx, C.uint(timeNTP))
+	defer C.free(unsafe.Pointer(buf))
+	return C.GoString(buf)
 }
 
 type RTPQueue interface {

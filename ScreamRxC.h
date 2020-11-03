@@ -21,7 +21,7 @@ extern "C" {
     } Feedback;
 
     typedef void* ScreamRxC;
-    ScreamRxC* ScreamRxInit(int ssrc);
+    ScreamRxC* ScreamRxInit(unsigned int ssrc);
     void ScreamRxFree(ScreamRxC*);
 
     void ScreamRxReceive(ScreamRxC*, unsigned int, void*, unsigned int, int, unsigned int, unsigned char);

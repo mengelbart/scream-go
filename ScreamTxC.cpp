@@ -79,3 +79,10 @@ float ScreamTxGetTargetBitrate(ScreamTxC* s, unsigned int ssrc) {
     ScreamTx* stx = (ScreamTx*) s;
     return stx->getTargetBitrate(ssrc);
 }
+
+char* ScreamTxGetStatistics(ScreamTxC* s, unsigned int time_ntp) {
+    ScreamTx* stx = (ScreamTx*) s;
+    char * buf = (char*) malloc(sizeof(char) * 1000);
+    stx->getLog(time_ntp, buf);
+    return buf;
+}

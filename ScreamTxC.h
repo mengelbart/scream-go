@@ -43,6 +43,7 @@ extern "C" {
         unsigned char,
         bool);
     float ScreamTxGetTargetBitrate(ScreamTxC*, unsigned int);
+    char* ScreamTxGetStatistics(ScreamTxC*, unsigned int);
 
 #ifdef __cplusplus
 }

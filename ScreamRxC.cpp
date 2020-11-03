@@ -7,7 +7,7 @@
 #include "ScreamRx.h"
 #include "ScreamRxC.h"
 
-ScreamRxC* ScreamRxInit(int ssrc) {
+ScreamRxC* ScreamRxInit(unsigned int ssrc) {
     ScreamRx* ret = new ScreamRx(ssrc);
     return (void**) ret;
 }
