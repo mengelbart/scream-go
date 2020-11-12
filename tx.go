@@ -46,9 +46,9 @@ func (t *Tx) AddTransmitted(timeNTP uint, ssrc uint, size int, seqNr uint, isMar
 }
 
 func (t *Tx) IncomingStandardizedFeedback(timeNTP uint, buf []byte) {
-	b := C.CBytes(buf)
-	defer C.free(b)
-	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(timeNTP), b, C.int(len(buf)))
+	c := make([]byte, len(buf))
+	copy(c, buf)
+	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(timeNTP), unsafe.Pointer(&c[0]), C.int(len(c)))
 }
 
 func (t *Tx) IncomingFeedback(timeNTP uint, streamID int, timestamp uint, seqNr uint, ceBits byte, isLast bool) {
