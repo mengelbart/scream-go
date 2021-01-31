@@ -11,7 +11,6 @@ package scream
 */
 import "C"
 import (
-	"log"
 	"sync"
 	"unsafe"
 )
@@ -90,7 +89,6 @@ func nextRTPQueueID() int {
 func goClear(id C.int) {
 	srcPipelinesLock.Lock()
 	defer srcPipelinesLock.Unlock()
-	log.Println("Clear queue")
 	rtpQueues[int(id)].Clear()
 }
 
