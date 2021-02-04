@@ -10,7 +10,9 @@ package scream
 #include <stdlib.h>
 */
 import "C"
-import "unsafe"
+import (
+	"unsafe"
+)
 
 type Rx struct {
 	screamRx *C.ScreamRxC
@@ -35,10 +37,15 @@ func (r *Rx) IsFeedback(timeNTP uint) bool {
 // CreateStandardizedFeedback creates a feedback packet according to
 // https://tools.ietf.org/wg/avtcore/draft-ietf-avtcore-cc-feedback-message/
 func (r *Rx) CreateStandardizedFeedback(timeNTP uint, isMark bool) (bool, []byte) {
-	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint(timeNTP), C.bool(isMark))
+
+	buf := make([]byte, 2048)
+	ptr := unsafe.Pointer(&buf[0])
+	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint(timeNTP), C.bool(isMark), (*C.uchar)(ptr))
 	defer C.free(unsafe.Pointer(ret))
+
 	size := C.ScreamRxGetFeedbackSize(ret)
-	buf := C.ScreamRxGetFeedbackBuffer(ret)
-	bs := C.GoBytes(unsafe.Pointer(buf), size)
-	return bool(C.ScreamRxGetFeedbackResult(ret)), bs
+	result := make([]byte, size)
+	copy(result, buf)
+
+	return bool(C.ScreamRxGetFeedbackResult(ret)), result
 }

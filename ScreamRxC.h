@@ -16,7 +16,6 @@ extern "C" {
 
     typedef struct {
         int size;
-        unsigned char* buf;
         bool result;
     } Feedback;
 
@@ -26,7 +25,7 @@ extern "C" {
 
     void ScreamRxReceive(ScreamRxC*, unsigned int, void*, unsigned int, int, unsigned int, unsigned char);
     bool ScreamRxIsFeedback(ScreamRxC*, unsigned int);
-    Feedback* ScreamRxGetFeedback(ScreamRxC*, unsigned int, bool);
+    Feedback* ScreamRxGetFeedback(ScreamRxC*, unsigned int, bool, unsigned char *buf);
 
     bool ScreamRxGetFeedbackResult(Feedback*);
     int ScreamRxGetFeedbackSize(Feedback*);
