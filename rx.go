@@ -20,14 +20,14 @@ type Rx struct {
 }
 
 // NewRx creates a new Rx instance. One Rx is created for each source SSRC
-func NewRx(ssrc uint) *Rx {
+func NewRx(ssrc uint32) *Rx {
 	return &Rx{
 		screamRx: C.ScreamRxInit(C.uint(ssrc)),
 	}
 }
 
 // Receive needs to be called each time an RTP packet is received
-func (r *Rx) Receive(ntpTime uint64, ssrc uint32, size int, seqNr int, ceBits uint8) {
+func (r *Rx) Receive(ntpTime uint64, ssrc uint32, size int, seqNr uint16, ceBits uint8) {
 	C.ScreamRxReceive(r.screamRx, C.uint(ntpToQ16(ntpTime)), nil, C.uint(ssrc), C.int(size), C.uint(seqNr), C.uchar(ceBits))
 }
 
