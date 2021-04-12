@@ -14,33 +14,41 @@ import (
 	"unsafe"
 )
 
+// Rx implements the receiver side of SCReAM
 type Rx struct {
 	screamRx *C.ScreamRxC
 }
 
+// NewRx creates a new Rx instance. One Rx is created for each source SSRC
 func NewRx(ssrc uint) *Rx {
 	return &Rx{
 		screamRx: C.ScreamRxInit(C.uint(ssrc)),
 	}
 }
 
-// Receive needs to be called when new packets are received
-// TODO: Determine better type for rtpPacket, convert to Cpointer and pass it to C
-func (r *Rx) Receive(timeNTP uint, rtpPacket interface{}, ssrc int, size int, seqNr int, ceBits uint8) {
-	C.ScreamRxReceive(r.screamRx, C.uint(timeNTP), nil, C.uint(ssrc), C.int(size), C.uint(seqNr), C.uchar(ceBits))
+func ntpToQ16(ntpTime uint64) uint32 {
+	return uint32((ntpTime >> 16) & 0xFFFFFFFF)
 }
 
-func (r *Rx) IsFeedback(timeNTP uint) bool {
-	return bool(C.ScreamRxIsFeedback(r.screamRx, C.uint(timeNTP)))
+// Receive needs to be called each time an RTP packet is received
+func (r *Rx) Receive(ntpTime uint64, ssrc uint32, size int, seqNr int, ceBits uint8) {
+	C.ScreamRxReceive(r.screamRx, C.uint(ntpToQ16(ntpTime)), nil, C.uint(ssrc), C.int(size), C.uint(seqNr), C.uchar(ceBits))
+}
+
+// IsFeedback returns TRUE if an RTP packet has been received and there is pending feedback
+func (r *Rx) IsFeedback(ntpTime uint64) bool {
+	return bool(C.ScreamRxIsFeedback(r.screamRx, C.uint(ntpToQ16(ntpTime))))
 }
 
 // CreateStandardizedFeedback creates a feedback packet according to
 // https://tools.ietf.org/wg/avtcore/draft-ietf-avtcore-cc-feedback-message/
-func (r *Rx) CreateStandardizedFeedback(timeNTP uint, isMark bool) (bool, []byte) {
+// Current implementation implements -02 version
+// It is up to the wrapper application to prepend this RTCP with SR or RR when needed
+func (r *Rx) CreateStandardizedFeedback(ntpTime uint64, isMark bool) (bool, []byte) {
 
 	buf := make([]byte, 2048)
 	ptr := unsafe.Pointer(&buf[0])
-	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint(timeNTP), C.bool(isMark), (*C.uchar)(ptr))
+	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint(ntpToQ16(ntpTime)), C.bool(isMark), (*C.uchar)(ptr))
 	defer C.free(unsafe.Pointer(ret))
 
 	size := C.ScreamRxGetFeedbackSize(ret)

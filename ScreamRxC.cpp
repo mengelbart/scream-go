@@ -38,9 +38,7 @@ bool ScreamRxIsFeedback(ScreamRxC* s, unsigned int time_ntp) {
 Feedback* ScreamRxGetFeedback(ScreamRxC* s, unsigned int time_ntp, bool isMark, unsigned char *buf) {
     ScreamRx* srx = (ScreamRx*) s;
     Feedback *fb = (Feedback*)malloc(sizeof(Feedback));
-    int fb_size = -1;
-    fb->result = srx->createStandardizedFeedback(time_ntp, isMark, buf, fb_size);
-    fb->size = fb_size;
+    fb->result = srx->createStandardizedFeedback(time_ntp, isMark, buf, fb->size);
     return fb;
 }
 
