@@ -11,125 +11,91 @@ package scream
 */
 import "C"
 import (
-	"sync"
 	"unsafe"
 )
 
+// Tx implements the sender side of SCReAM
 type Tx struct {
 	screamTx *C.ScreamTxC
 }
 
+// NewTx creates a new Tx instance.
 func NewTx() *Tx {
 	return &Tx{
 		screamTx: C.ScreamTxInit(),
 	}
 }
 
-func (t *Tx) RegisterNewStream(rtpQueue RTPQueue, ssrc uint, priority, minBitrate, startBitrate, maxBitrate float64) {
-	id := nextRTPQueueID()
-	rtpQueues[id] = rtpQueue
-	rtpQueueC := C.RtpQueueIfaceInit(C.int(id))
+// RegisterNewStream registers a new stream with ssrc using rtpQueue.
+// Priority is in the range ]0.0..1.0] where 1.0 denotes the highest priority.
+// It is recommended that at least one stream has priority 1.0.
+// Bitrates are specified in bps
+func (t *Tx) RegisterNewStream(rtpQueue RTPQueue, ssrc uint32, priority, minBitrate, startBitrate, maxBitrate float64) {
+	rtpQueues[ssrc] = rtpQueue
+	rtpQueueC := C.RtpQueueIfaceInit(C.int(ssrc))
 	C.ScreamTxRegisterNewStream(t.screamTx, rtpQueueC, C.uint(ssrc), C.float(priority), C.float(minBitrate), C.float(startBitrate), C.float(maxBitrate))
 }
 
-func (t *Tx) NewMediaFrame(timeNTP, ssrc uint, bytesRTP int) {
-	C.ScreamTxNewMediaFrame(t.screamTx, C.uint(timeNTP), C.uint(ssrc), C.int(bytesRTP))
+// NewMediaFrame should be called for each new video frame.
+// IsOkToTransmit should be called after newMediaFrame
+func (t *Tx) NewMediaFrame(ntpTime uint64, ssrc uint32, bytesRTP int) {
+	C.ScreamTxNewMediaFrame(t.screamTx, C.uint(ntpToQ16(ntpTime)), C.uint(ssrc), C.int(bytesRTP))
 }
 
-func (t *Tx) IsOkToTransmit(timeNTP uint, ssrc uint) float64 {
-	return float64(C.ScreamTxIsOkToTransmit(t.screamTx, C.uint(timeNTP), C.uint(ssrc)))
+// IsOkToTransmit determines if an RTP packet with ssrc can be transmitted.
+// Returns:
+//
+// 0.0: RTP packet with ssrc can be immediately transmitted. AddTransmitted must be
+// called if packet is transmitted as a result of this.
+//
+// >0.0: Time [s] until this function should be called again. This can be used to
+// start a timer.
+// Note that a call to NewMediaFrame or IncomingFeedback should cause an immediate
+// call to isOkToTransmit.
+//
+// -1.0: No RTP packet available to transmit or send window is not large enough
+func (t *Tx) IsOkToTransmit(ntpTime uint64, ssrc uint32) float64 {
+	return float64(C.ScreamTxIsOkToTransmit(t.screamTx, C.uint(ntpToQ16(ntpTime)), C.uint(ssrc)))
 }
 
-func (t *Tx) AddTransmitted(timeNTP uint, ssrc uint, size int, seqNr uint, isMark bool) float64 {
-	return float64(C.ScreamTxAddTransmitted(t.screamTx, C.uint(timeNTP), C.uint(ssrc), C.int(size), C.uint(seqNr), C.bool(isMark)))
+// AddTransmitted adds a packet to list of transmitted packets. Should be called when an
+// RTP packet was transmitted. AddTransmitted returns the time until IsOkToTransmit can be
+// called again.
+func (t *Tx) AddTransmitted(ntpTime uint64, ssrc uint32, size int, seqNr uint16, isMark bool) float64 {
+	return float64(C.ScreamTxAddTransmitted(t.screamTx, C.uint(ntpToQ16(ntpTime)), C.uint(ssrc), C.int(size), C.uint(seqNr), C.bool(isMark)))
 }
 
-func (t *Tx) IncomingStandardizedFeedback(timeNTP uint, buf []byte) {
+// IncomingStandardizedFeedback parses an incoming standardized feedback according to
+// https://tools.ietf.org/wg/avtcore/draft-ietf-avtcore-cc-feedback-message/
+// Current implementation implements -02 version and assumes that SR/RR or other
+// non-CC feedback is stripped.
+func (t *Tx) IncomingStandardizedFeedback(ntpTime uint64, buf []byte) {
 	c := make([]byte, len(buf))
 	copy(c, buf)
-	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(timeNTP), unsafe.Pointer(&c[0]), C.int(len(c)))
+	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(ntpToQ16(ntpTime)), unsafe.Pointer(&c[0]), C.int(len(c)))
 }
 
-func (t *Tx) IncomingFeedback(timeNTP uint, streamID int, timestamp uint, seqNr uint, ceBits byte, isLast bool) {
-	C.ScreamTxIncomingFeedback(t.screamTx, C.uint(timeNTP), C.int(streamID), C.uint(timestamp), C.uint(seqNr), C.uchar(ceBits), C.bool(isLast))
-}
+//
+//func (t *Tx) IncomingFeedback(timeNTP uint, streamID int, timestamp uint, seqNr uint, ceBits byte, isLast bool) {
+//	C.ScreamTxIncomingFeedback(t.screamTx, C.uint(timeNTP), C.int(streamID), C.uint(timestamp), C.uint(seqNr), C.uchar(ceBits), C.bool(isLast))
+//}
 
-func (t *Tx) GetTargetBitrate(ssrc uint) float64 {
+// GetTargetBitrate returns the target bitrate for the stream with ssrc.
+// NOTE!, Because SCReAM operates on RTP packets, the target bitrate will
+// also include the RTP overhead. This means that a subsequent call to set the
+// media coder target bitrate must subtract an estimate of the RTP + framing
+// overhead. This is not critical for Video bitrates but can be important
+// when SCReAM is used to congestion control e.g low bitrate audio streams.
+//
+// Function returns -1 if a loss is detected, this signal can be used to
+// request a new key frame from a video encoder.
+func (t *Tx) GetTargetBitrate(ssrc uint32) float64 {
 	return float64(C.ScreamTxGetTargetBitrate(t.screamTx, C.uint(ssrc)))
 }
 
-func (t *Tx) GetStatistics(timeNTP uint) string {
-	buf := C.ScreamTxGetStatistics(t.screamTx, C.uint(timeNTP))
+// GetStatistics returns some overall SCReAM statistics.
+func (t *Tx) GetStatistics(ntpTime uint64) string {
+	buf := C.ScreamTxGetStatistics(t.screamTx, C.uint(ntpToQ16(ntpTime)))
 	defer C.free(unsafe.Pointer(buf))
 	return C.GoString(buf)
-}
-
-type RTPQueue interface {
-	Clear()
-	SizeOfNextRTP() int
-	SeqNrOfNextRTP() int
-	BytesInQueue() int
-	SizeOfQueue() int
-	GetDelay(float64) float64
-	GetSizeOfLastFrame() int
-}
-
-var srcPipelinesLock sync.Mutex
-var rtpQueues = map[int]RTPQueue{}
-var nextPipelineID = 0
-
-func nextRTPQueueID() int {
-	defer func() {
-		nextPipelineID++
-	}()
-	return nextPipelineID
-}
-
-//export goClear
-func goClear(id C.int) {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	rtpQueues[int(id)].Clear()
-}
-
-//export goSizeOfNextRtp
-func goSizeOfNextRtp(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[int(id)].SizeOfNextRTP())
-}
-
-//export goSeqNrOfNextRtp
-func goSeqNrOfNextRtp(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[int(id)].SeqNrOfNextRTP())
-}
-
-//export goBytesInQueue
-func goBytesInQueue(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[int(id)].BytesInQueue())
-}
-
-//export goSizeOfQueue
-func goSizeOfQueue(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[int(id)].SizeOfQueue())
-}
-
-//export goGetDelay
-func goGetDelay(id C.int, currTs C.float) C.float {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.float(rtpQueues[int(id)].GetDelay(float64(currTs)))
-}
-
-//export goGetSizeOfLastFrame
-func goGetSizeOfLastFrame(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[int(id)].GetSizeOfLastFrame())
 }

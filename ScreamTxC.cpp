@@ -64,17 +64,6 @@ void ScreamTxIncomingStdFeedback(ScreamTxC* s,
     stx->incomingStandardizedFeedback(time_ntp, chptr, size);
 }
 
-void ScreamTxIncomingFeedback(ScreamTxC* s,
-        unsigned int time_ntp,
-        int streamId,
-        unsigned int timestamp,
-        unsigned int seqNr,
-        unsigned char ceBits,
-        bool isLast) {
-    ScreamTx* stx = (ScreamTx*) s;
-    stx->incomingStandardizedFeedback(time_ntp, streamId, timestamp, seqNr, ceBits, isLast);
-}
-
 float ScreamTxGetTargetBitrate(ScreamTxC* s, unsigned int ssrc) {
     ScreamTx* stx = (ScreamTx*) s;
     return stx->getTargetBitrate(ssrc);

@@ -26,10 +26,6 @@ func NewRx(ssrc uint) *Rx {
 	}
 }
 
-func ntpToQ16(ntpTime uint64) uint32 {
-	return uint32((ntpTime >> 16) & 0xFFFFFFFF)
-}
-
 // Receive needs to be called each time an RTP packet is received
 func (r *Rx) Receive(ntpTime uint64, ssrc uint32, size int, seqNr int, ceBits uint8) {
 	C.ScreamRxReceive(r.screamRx, C.uint(ntpToQ16(ntpTime)), nil, C.uint(ssrc), C.int(size), C.uint(seqNr), C.uchar(ceBits))
