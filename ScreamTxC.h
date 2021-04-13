@@ -35,13 +35,6 @@ extern "C" {
         unsigned int,
         void*,
         int size);
-    void ScreamTxIncomingFeedback(ScreamTxC*,
-        unsigned int,
-        int,
-        unsigned int,
-        unsigned int,
-        unsigned char,
-        bool);
     float ScreamTxGetTargetBitrate(ScreamTxC*, unsigned int);
     char* ScreamTxGetStatistics(ScreamTxC*, unsigned int);
 

@@ -75,11 +75,6 @@ func (t *Tx) IncomingStandardizedFeedback(ntpTime uint64, buf []byte) {
 	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(ntpToQ16(ntpTime)), unsafe.Pointer(&c[0]), C.int(len(c)))
 }
 
-//
-//func (t *Tx) IncomingFeedback(timeNTP uint, streamID int, timestamp uint, seqNr uint, ceBits byte, isLast bool) {
-//	C.ScreamTxIncomingFeedback(t.screamTx, C.uint(timeNTP), C.int(streamID), C.uint(timestamp), C.uint(seqNr), C.uchar(ceBits), C.bool(isLast))
-//}
-
 // GetTargetBitrate returns the target bitrate for the stream with ssrc.
 // NOTE!, Because SCReAM operates on RTP packets, the target bitrate will
 // also include the RTP overhead. This means that a subsequent call to set the
