@@ -84,8 +84,8 @@ func (t *Tx) IncomingStandardizedFeedback(ntpTime uint64, buf []byte) {
 //
 // Function returns -1 if a loss is detected, this signal can be used to
 // request a new key frame from a video encoder.
-func (t *Tx) GetTargetBitrate(ssrc uint32) float64 {
-	return float64(C.ScreamTxGetTargetBitrate(t.screamTx, C.uint(ssrc)))
+func (t *Tx) GetTargetBitrate(ssrc uint32) int64 {
+	return int64(C.ScreamTxGetTargetBitrate(t.screamTx, C.uint(ssrc)))
 }
 
 // GetStatistics returns some overall SCReAM statistics.
