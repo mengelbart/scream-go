@@ -1,7 +1,9 @@
 package scream
 
 import "C"
-import "sync"
+import (
+	"sync"
+)
 
 // RTPQueue implements a simple RTP packet queue. One RTPQueue should be used
 // per SSRC stream.
@@ -10,7 +12,7 @@ type RTPQueue interface {
 	SizeOfNextRTP() int
 
 	// SeqNrOfNextRTP returns the RTP sequence number of the next item in the queue
-	SeqNrOfNextRTP() int
+	SeqNrOfNextRTP() uint16
 
 	// BytesInQueue returns the total number of bytes in the queue, i.e. the
 	// sum of the sizes of all items in the queue.
@@ -20,7 +22,8 @@ type RTPQueue interface {
 	SizeOfQueue() int
 
 	// GetDelay returns the delay of the last item in the queue.
-	GetDelay(ts float64) float64
+	// ts is given in seconds.
+	GetDelay(ts float32) float32
 
 	// GetSizeOfLastFrame returns the size of the latest pushed item.
 	GetSizeOfLastFrame() int
@@ -71,7 +74,7 @@ func goSizeOfQueue(id C.int) C.int {
 func goGetDelay(id C.int, currTs C.float) C.float {
 	srcPipelinesLock.Lock()
 	defer srcPipelinesLock.Unlock()
-	return C.float(rtpQueues[uint32(id)].GetDelay(float64(currTs)))
+	return C.float(rtpQueues[uint32(id)].GetDelay(float32(currTs)))
 }
 
 //export goGetSizeOfLastFrame
