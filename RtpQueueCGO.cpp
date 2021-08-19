@@ -5,6 +5,7 @@
 #include "RtpQueueCGO.h"
 
 RtpQueueCGO::RtpQueueCGO(int id) {
+    this->id = id;
 }
 
 void RtpQueueCGO::clear() {
