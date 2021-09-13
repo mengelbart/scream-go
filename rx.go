@@ -28,12 +28,12 @@ func NewRx(ssrc uint32) *Rx {
 
 // Receive needs to be called each time an RTP packet is received
 func (r *Rx) Receive(ntpTime uint64, ssrc uint32, size int, seqNr uint16, ceBits uint8) {
-	C.ScreamRxReceive(r.screamRx, C.uint(ntpToQ16(ntpTime)), nil, C.uint(ssrc), C.int(size), C.uint(seqNr), C.uchar(ceBits))
+	C.ScreamRxReceive(r.screamRx, C.uint(ntpTime), nil, C.uint(ssrc), C.int(size), C.uint(seqNr), C.uchar(ceBits))
 }
 
 // IsFeedback returns TRUE if an RTP packet has been received and there is pending feedback
 func (r *Rx) IsFeedback(ntpTime uint64) bool {
-	return bool(C.ScreamRxIsFeedback(r.screamRx, C.uint(ntpToQ16(ntpTime))))
+	return bool(C.ScreamRxIsFeedback(r.screamRx, C.uint(ntpTime)))
 }
 
 // CreateStandardizedFeedback creates a feedback packet according to
@@ -44,7 +44,7 @@ func (r *Rx) CreateStandardizedFeedback(ntpTime uint64, isMark bool) (bool, []by
 
 	buf := make([]byte, 2048)
 	ptr := unsafe.Pointer(&buf[0])
-	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint(ntpToQ16(ntpTime)), C.bool(isMark), (*C.uchar)(ptr))
+	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint(ntpTime), C.bool(isMark), (*C.uchar)(ptr))
 	defer C.free(unsafe.Pointer(ret))
 
 	size := C.ScreamRxGetFeedbackSize(ret)

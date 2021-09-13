@@ -41,7 +41,7 @@ func (t *Tx) RegisterNewStream(rtpQueue RTPQueue, ssrc uint32, priority, minBitr
 // NewMediaFrame should be called for each new video frame.
 // IsOkToTransmit should be called after newMediaFrame
 func (t *Tx) NewMediaFrame(ntpTime uint64, ssrc uint32, bytesRTP int) {
-	C.ScreamTxNewMediaFrame(t.screamTx, C.uint(ntpToQ16(ntpTime)), C.uint(ssrc), C.int(bytesRTP))
+	C.ScreamTxNewMediaFrame(t.screamTx, C.uint(ntpTime), C.uint(ssrc), C.int(bytesRTP))
 }
 
 // IsOkToTransmit determines if an RTP packet with ssrc can be transmitted.
@@ -57,14 +57,14 @@ func (t *Tx) NewMediaFrame(ntpTime uint64, ssrc uint32, bytesRTP int) {
 //
 // -1.0: No RTP packet available to transmit or send window is not large enough
 func (t *Tx) IsOkToTransmit(ntpTime uint64, ssrc uint32) float64 {
-	return float64(C.ScreamTxIsOkToTransmit(t.screamTx, C.uint(ntpToQ16(ntpTime)), C.uint(ssrc)))
+	return float64(C.ScreamTxIsOkToTransmit(t.screamTx, C.uint(ntpTime), C.uint(ssrc)))
 }
 
 // AddTransmitted adds a packet to list of transmitted packets. Should be called when an
 // RTP packet was transmitted. AddTransmitted returns the time until IsOkToTransmit can be
 // called again.
 func (t *Tx) AddTransmitted(ntpTime uint64, ssrc uint32, size int, seqNr uint16, isMark bool) float64 {
-	return float64(C.ScreamTxAddTransmitted(t.screamTx, C.uint(ntpToQ16(ntpTime)), C.uint(ssrc), C.int(size), C.uint(seqNr), C.bool(isMark)))
+	return float64(C.ScreamTxAddTransmitted(t.screamTx, C.uint(ntpTime), C.uint(ssrc), C.int(size), C.uint(seqNr), C.bool(isMark)))
 }
 
 // IncomingStandardizedFeedback parses an incoming standardized feedback according to
@@ -74,7 +74,7 @@ func (t *Tx) AddTransmitted(ntpTime uint64, ssrc uint32, size int, seqNr uint16,
 func (t *Tx) IncomingStandardizedFeedback(ntpTime uint64, buf []byte) {
 	c := make([]byte, len(buf))
 	copy(c, buf)
-	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(ntpToQ16(ntpTime)), unsafe.Pointer(&c[0]), C.int(len(c)))
+	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(ntpTime), unsafe.Pointer(&c[0]), C.int(len(c)))
 }
 
 // GetTargetBitrate returns the target bitrate for the stream with ssrc.
@@ -86,13 +86,13 @@ func (t *Tx) IncomingStandardizedFeedback(ntpTime uint64, buf []byte) {
 //
 // Function returns -1 if a loss is detected, this signal can be used to
 // request a new key frame from a video encoder.
-func (t *Tx) GetTargetBitrate(ssrc uint32) int64 {
-	return int64(C.ScreamTxGetTargetBitrate(t.screamTx, C.uint(ssrc)))
+func (t *Tx) GetTargetBitrate(ssrc uint32) float64 {
+	return float64(C.ScreamTxGetTargetBitrate(t.screamTx, C.uint(ssrc)))
 }
 
 // GetStatistics returns some overall SCReAM statistics.
 func (t *Tx) GetStatistics(ntpTime uint64) string {
-	buf := C.ScreamTxGetStatistics(t.screamTx, C.uint(ntpToQ16(ntpTime)))
+	buf := C.ScreamTxGetStatistics(t.screamTx, C.uint(ntpTime))
 	defer C.free(unsafe.Pointer(buf))
 	return C.GoString(buf)
 }

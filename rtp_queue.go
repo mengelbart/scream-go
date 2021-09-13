@@ -23,7 +23,7 @@ type RTPQueue interface {
 
 	// GetDelay returns the delay of the last item in the queue.
 	// ts is given in seconds.
-	GetDelay(ts float32) float32
+	GetDelay(ts float64) float64
 
 	// GetSizeOfLastFrame returns the size of the latest pushed item.
 	GetSizeOfLastFrame() int
@@ -74,7 +74,7 @@ func goSizeOfQueue(id C.int) C.int {
 func goGetDelay(id C.int, currTs C.float) C.float {
 	srcPipelinesLock.Lock()
 	defer srcPipelinesLock.Unlock()
-	return C.float(rtpQueues[uint32(id)].GetDelay(float32(currTs)))
+	return C.float(rtpQueues[uint32(id)].GetDelay(float64(currTs)))
 }
 
 //export goGetSizeOfLastFrame
