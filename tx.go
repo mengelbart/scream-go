@@ -91,8 +91,12 @@ func (t *Tx) GetTargetBitrate(ssrc uint32) float64 {
 }
 
 // GetStatistics returns some overall SCReAM statistics.
-func (t *Tx) GetStatistics(ntpTime uint64) string {
-	buf := C.ScreamTxGetStatistics(t.screamTx, C.uint(ntpTime))
+func (t *Tx) GetStatistics(ntpTime uint64, clear bool) string {
+	clearInt := uint(0)
+	if clear {
+		clearInt = 1
+	}
+	buf := C.ScreamTxGetStatistics(t.screamTx, C.uint(ntpTime), C.uint(clearInt))
 	defer C.free(unsafe.Pointer(buf))
 	return C.GoString(buf)
 }
