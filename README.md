@@ -13,4 +13,4 @@ go get github.com/mengelbart/scream-go
 
 ## LICENSES
 
-The files taken from the Ericsson Research's SCReAM-implementation each contain their own LICENSE header. Anything added to that implementation is LICENSED under a BSD 2-Clause License in the [LICENSE file](LICENSE).
+The files taken from the Ericsson Research's SCReAM-implementation are licensed under the LICENSE in [LICENSE_SCREAM](LICENSE_SCREAM). Anything added to that implementation is LICENSED under a BSD 2-Clause License in the [LICENSE file](LICENSE).
