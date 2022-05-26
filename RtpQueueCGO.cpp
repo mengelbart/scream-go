@@ -8,8 +8,8 @@ RtpQueueCGO::RtpQueueCGO(int id) {
     this->id = id;
 }
 
-void RtpQueueCGO::clear() {
-    goClear(this->id);
+int RtpQueueCGO::clear() {
+    return goClear(this->id);
 }
 
 int RtpQueueCGO::sizeOfNextRtp() {

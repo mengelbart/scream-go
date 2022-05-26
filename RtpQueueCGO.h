@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 
-    void goClear(int);
+    int goClear(int);
     int goSizeOfNextRtp(int);
     int goSeqNrOfNextRtp(int);
     int goBytesInQueue(int);
@@ -30,7 +30,7 @@ class RtpQueueCGO : public RtpQueueIface {
 public:
     RtpQueueCGO(int);
 
-    void clear();
+    int clear();
     int sizeOfNextRtp();
     int seqNrOfNextRtp();
     int bytesInQueue(); // Number of bytes in queue

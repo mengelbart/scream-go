@@ -29,17 +29,17 @@ type RTPQueue interface {
 	GetSizeOfLastFrame() int
 
 	// Clear empties the queue.
-	Clear()
+	Clear() int
 }
 
 var srcPipelinesLock sync.Mutex
 var rtpQueues = map[uint32]RTPQueue{}
 
 //export goClear
-func goClear(id C.int) {
+func goClear(id C.int) C.int {
 	srcPipelinesLock.Lock()
 	defer srcPipelinesLock.Unlock()
-	rtpQueues[uint32(id)].Clear()
+	return C.int(rtpQueues[uint32(id)].Clear())
 }
 
 //export goSizeOfNextRtp
