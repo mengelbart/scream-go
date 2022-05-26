@@ -11,6 +11,7 @@ public:
     virtual int clear() = 0;
     virtual int sizeOfNextRtp() = 0;
     virtual int seqNrOfNextRtp() = 0;
+    virtual int seqNrOfLastRtp() = 0;
     virtual int bytesInQueue() = 0; // Number of bytes in queue
     virtual int sizeOfQueue() = 0;  // Number of items in queue
     virtual float getDelay(float currTs) = 0;

@@ -14,6 +14,9 @@ type RTPQueue interface {
 	// SeqNrOfNextRTP returns the RTP sequence number of the next item in the queue
 	SeqNrOfNextRTP() uint16
 
+	// SeqNrOfLastRTP returns the RTP sequence number of the last item in the queue
+	SeqNrOfLastRTP() uint16
+
 	// BytesInQueue returns the total number of bytes in the queue, i.e. the
 	// sum of the sizes of all items in the queue.
 	BytesInQueue() int
@@ -54,6 +57,13 @@ func goSeqNrOfNextRtp(id C.int) C.int {
 	srcPipelinesLock.Lock()
 	defer srcPipelinesLock.Unlock()
 	return C.int(rtpQueues[uint32(id)].SeqNrOfNextRTP())
+}
+
+//export goSeqNrOfLastRtp
+func goSeqNrOfLastRtp(id C.int) C.int {
+	srcPipelinesLock.Lock()
+	defer srcPipelinesLock.Unlock()
+	return C.int(rtpQueues[uint32(id)].SeqNrOfLastRTP())
 }
 
 //export goBytesInQueue

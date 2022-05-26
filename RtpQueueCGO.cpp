@@ -20,6 +20,10 @@ int RtpQueueCGO::seqNrOfNextRtp() {
     return goSeqNrOfNextRtp(this->id);
 }
 
+int RtpQueueCGO::seqNrOfLastRtp() {
+    return goSeqNrOfLastRtp(this->id);
+}
+
 int RtpQueueCGO::bytesInQueue() {
     return goBytesInQueue(this->id);
 }
