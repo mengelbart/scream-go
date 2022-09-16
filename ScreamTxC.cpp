@@ -12,7 +12,14 @@ RtpQueueIfaceC* RtpQueueIfaceInit(int id) {
 }
 
 ScreamTxC* ScreamTxInit() {
-    ScreamTx* ret = new ScreamTx();
+    ScreamTx* ret = new ScreamTx(
+            0.8f,
+            0.9f,
+            0.1f,
+            false,
+            1.0f,
+            2.0f,
+            12500);
     return (void**) ret;
 }
 
