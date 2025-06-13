@@ -27,8 +27,9 @@ func NewRx(ssrc uint32) *Rx {
 }
 
 // Receive needs to be called each time an RTP packet is received
-func (r *Rx) Receive(ntpTime uint64, ssrc uint32, size int, seqNr uint16, ceBits uint8) {
-	C.ScreamRxReceive(r.screamRx, C.uint(ntpTime), nil, C.uint(ssrc), C.int(size), C.uint(seqNr), C.uchar(ceBits))
+func (r *Rx) Receive(ntpTime uint64, size int, seqNr uint16, isEcnCe bool, ceBits uint8) {
+	C.ScreamRxReceive(r.screamRx, C.uint(ntpTime), nil, C.int(size), C.uint(seqNr), C.bool(isEcnCe), C.uchar(ceBits), C.bool(false), C.bool(0))
+	// TODO: Not sure about last 2 arguments of receive, set to false and 0 for now
 }
 
 // IsFeedback returns TRUE if an RTP packet has been received and there is pending feedback
