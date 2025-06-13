@@ -20,14 +20,16 @@ void ScreamRxFree(ScreamRxC* s) {
 void ScreamRxReceive(ScreamRxC* s,
         unsigned int time_ntp,
         void* rtpPacket,
-        unsigned int ssrc,
-        int size,
-        unsigned int seqNr,
-        unsigned char ceBits
+		int size,
+		unsigned int seqNr,
+        bool isEcnCe,
+        unsigned char ceBits,
+		bool isMarker,
+		unsigned int timeStamp
     ){
 
     ScreamRx* srx = (ScreamRx*) s;
-    srx->receive(time_ntp, rtpPacket, ssrc, size, seqNr, ceBits);
+    srx->receive(time_ntp, rtpPacket, size, seqNr, isEcnCe, ceBits, isMarker, timeStamp);
 }
 
 bool ScreamRxIsFeedback(ScreamRxC* s, unsigned int time_ntp) {
