@@ -23,7 +23,7 @@ extern "C" {
     ScreamRxC* ScreamRxInit(unsigned int ssrc);
     void ScreamRxFree(ScreamRxC*);
 
-    void ScreamRxReceive(ScreamRxC*, unsigned int, void*, unsigned int, int, unsigned int, unsigned char);
+    void ScreamRxReceive(ScreamRxC*, unsigned int, void*, int, unsigned int, bool, unsigned char, bool, unsigned int);
     bool ScreamRxIsFeedback(ScreamRxC*, unsigned int);
     Feedback* ScreamRxGetFeedback(ScreamRxC*, unsigned int, bool, unsigned char *buf);
 
