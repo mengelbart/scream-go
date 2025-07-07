@@ -8,6 +8,7 @@ package scream
 #cgo CPPFLAGS: -Wno-overflow -Wno-write-strings
 #include "ScreamRxC.h"
 #include <stdlib.h>
+#include <stdint.h>
 */
 import "C"
 import (
@@ -27,25 +28,25 @@ func NewRx(ssrc uint32) *Rx {
 }
 
 // Receive needs to be called each time an RTP packet is received
-func (r *Rx) Receive(ntpTime uint64, size int, seqNr uint16, isEcnCe bool, ceBits uint8) {
-	C.ScreamRxReceive(r.screamRx, C.uint(ntpTime), nil, C.int(size), C.uint(seqNr), C.bool(isEcnCe), C.uchar(ceBits), C.bool(false), C.uint(0))
-	// TODO: Not sure about last 2 arguments of receive, set to false and 0 for now
+func (r *Rx) Receive(ntpTime uint32, ssrc uint32, size int, seqNr uint16, ceBits uint8, isMark bool) {
+    // currently sets timestamp to 0 since it is not used in ScreamRx.cpp
+	C.ScreamRxReceive(r.screamRx, C.uint32_t(ntpTime), nil, C.uint32_t(ssrc), C.int(size), C.uint16_t(seqNr), C.uint8_t(ceBits), C.bool(isMark), C.uint32_t(0))
 }
 
 // IsFeedback returns TRUE if an RTP packet has been received and there is pending feedback
-func (r *Rx) IsFeedback(ntpTime uint64) bool {
-	return bool(C.ScreamRxIsFeedback(r.screamRx, C.uint(ntpTime)))
+func (r *Rx) IsFeedback(ntpTime uint32) bool {
+	return bool(C.ScreamRxIsFeedback(r.screamRx, C.uint32_t(ntpTime)))
 }
 
 // CreateStandardizedFeedback creates a feedback packet according to
 // https://tools.ietf.org/wg/avtcore/draft-ietf-avtcore-cc-feedback-message/
 // Current implementation implements -02 version
 // It is up to the wrapper application to prepend this RTCP with SR or RR when needed
-func (r *Rx) CreateStandardizedFeedback(ntpTime uint64, isMark bool) (bool, []byte) {
+func (r *Rx) CreateStandardizedFeedback(ntpTime uint32, isMark bool) (bool, []byte) {
 
 	buf := make([]byte, 2048)
 	ptr := unsafe.Pointer(&buf[0])
-	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint(ntpTime), C.bool(isMark), (*C.uchar)(ptr))
+	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint32_t(ntpTime), C.bool(isMark), (*C.uchar)(ptr))
 	defer C.free(unsafe.Pointer(ret))
 
 	size := C.ScreamRxGetFeedbackSize(ret)

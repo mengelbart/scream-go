@@ -18,26 +18,26 @@ void ScreamRxFree(ScreamRxC* s) {
 }
 
 void ScreamRxReceive(ScreamRxC* s,
-        unsigned int time_ntp,
+        uint32_t time_ntp,
         void* rtpPacket,
-		int size,
-		unsigned int seqNr,
-        bool isEcnCe,
-        unsigned char ceBits,
-		bool isMarker,
-		unsigned int timeStamp
+        uint32_t ssrc,
+        int size,
+        uint16_t seqNr,
+        uint8_t ceBits,
+        bool isMark,
+        uint32_t timeStamp
     ){
 
     ScreamRx* srx = (ScreamRx*) s;
-    srx->receive(time_ntp, rtpPacket, size, seqNr, isEcnCe, ceBits, isMarker, timeStamp);
+    srx->receive(time_ntp, rtpPacket, ssrc, size, seqNr, ceBits, isMark, timeStamp);
 }
 
-bool ScreamRxIsFeedback(ScreamRxC* s, unsigned int time_ntp) {
+bool ScreamRxIsFeedback(ScreamRxC* s, uint32_t time_ntp) {
     ScreamRx* srx = (ScreamRx*) s;
     return srx->isFeedback(time_ntp);
 }
 
-Feedback* ScreamRxGetFeedback(ScreamRxC* s, unsigned int time_ntp, bool isMark, unsigned char *buf) {
+Feedback* ScreamRxGetFeedback(ScreamRxC* s, uint32_t time_ntp, bool isMark, unsigned char* buf) {
     ScreamRx* srx = (ScreamRx*) s;
     Feedback *fb = (Feedback*)malloc(sizeof(Feedback));
     fb->result = srx->createStandardizedFeedback(time_ntp, isMark, buf, fb->size);

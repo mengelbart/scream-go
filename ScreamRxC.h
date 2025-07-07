@@ -8,6 +8,9 @@
 #define SCREAM_RX_H
 
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23,7 +26,15 @@ extern "C" {
     ScreamRxC* ScreamRxInit(unsigned int ssrc);
     void ScreamRxFree(ScreamRxC*);
 
-    void ScreamRxReceive(ScreamRxC*, unsigned int, void*, int, unsigned int, bool, unsigned char, bool, unsigned int);
+    void ScreamRxReceive(ScreamRxC* s,
+        uint32_t time_ntp,
+        void* rtpPacket,
+        uint32_t ssrc,
+        int size,
+        uint16_t seqNr,
+        uint8_t ceBits,
+        bool isMark,
+        uint32_t timeStamp);
     bool ScreamRxIsFeedback(ScreamRxC*, unsigned int);
     Feedback* ScreamRxGetFeedback(ScreamRxC*, unsigned int, bool, unsigned char *buf);
 
