@@ -3,9 +3,9 @@
 TARGET=scream
 
 $(TARGET): libscream.a
-	go build .
+	go build ./...
 
-libscream.a: ScreamTx.o ScreamTxC.o ScreamRx.o ScreamRxC.o
+libscream.a: scream/code/ScreamTx.o scream/code/ScreamV2TxStream.o scream/code/ScreamV2Tx.o ScreamTxC.o scream/code/ScreamRx.o ScreamRxC.o
 	ar r $@ $^
 
 %.o: %.cpp

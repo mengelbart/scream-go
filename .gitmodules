@@ -1,0 +1,3 @@
+[submodule "scream"]
+	path = scream
+	url = https://github.com/EricssonResearch/scream.git

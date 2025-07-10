@@ -2,83 +2,80 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "ScreamTx.h"
 #include "ScreamTxC.h"
-#include "RtpQueueCGO.h"
 
-RtpQueueIfaceC* RtpQueueIfaceInit(int id) {
-    RtpQueueIface* ret = new RtpQueueCGO(id);
-    return (void**) ret;
+#include "include/ScreamTx.h"
+
+ScreamV2Tx* ScreamTxInit() {
+  auto s = new ScreamV2Tx();
+  s->enablePacketPacing(false);
+  return s;
 }
 
-ScreamTxC* ScreamTxInit() {
-    ScreamTx* ret = new ScreamTx(
-            0.8f,
-            0.9f,
-            0.1f,
-            false,
-            1.0f,
-            2.0f,
-            12500);
-    return (void**) ret;
+void ScreamTxFree(ScreamV2Tx* s) {
+  delete s;
 }
 
-void ScreamTxFree(ScreamTxC* s) {
-    ScreamTx* stx = (ScreamTx*) s;
-    delete stx;
+void ScreamTxRegisterNewStream(ScreamV2Tx* s,
+                               RtpQueueC* rtpQueue,
+                               uint32_t ssrc,
+                               float priority,
+                               float minBitrate,
+                               float startBitrate,
+                               float maxBitrate) {
+  ScreamV2Tx* stx = (ScreamV2Tx*)s;
+  RtpQueueIface* rtpq = (RtpQueueIface*)rtpQueue;
+
+  stx->registerNewStream(rtpq, ssrc, priority, minBitrate, startBitrate,
+                         maxBitrate);
 }
 
-void ScreamTxRegisterNewStream(ScreamTxC* s,
-        RtpQueueIfaceC* rtpQueue,
-        unsigned int ssrc,
-        float priority,
-        float minBitrate,
-        float startBitrate,
-        float maxBitrate) {
-
-    ScreamTx* stx = (ScreamTx*) s;
-    RtpQueueIface* rtpq = (RtpQueueIface*) rtpQueue;
-
-    stx->registerNewStream(rtpq,
-            ssrc,
-            priority,
-            minBitrate,
-            startBitrate,
-            maxBitrate);
+void ScreamTxNewMediaFrame(ScreamV2Tx* s,
+                           uint32_t time_ntp,
+                           uint32_t ssrc,
+                           int bytesRtp,
+                           bool isMarker) {
+  s->newMediaFrame(time_ntp, ssrc, bytesRtp, isMarker);
 }
 
-void ScreamTxNewMediaFrame(ScreamTxC* s, unsigned int time_ntp, unsigned int ssrc, int bytesRtp) {
-    ScreamTx* stx = (ScreamTx*) s;
-    stx->newMediaFrame(time_ntp, ssrc, bytesRtp);
+float ScreamTxIsOkToTransmit(ScreamV2Tx* s, uint32_t time_ntp, uint32_t ssrc) {
+  return s->isOkToTransmit(time_ntp, ssrc);
 }
 
-float ScreamTxIsOkToTransmit(ScreamTxC* s, unsigned int time_ntp, unsigned int ssrc) {
-    ScreamTx* stx = (ScreamTx*) s;
-    return stx->isOkToTransmit(time_ntp, ssrc);
+float ScreamTxAddTransmitted(ScreamV2Tx* s,
+                             uint32_t time_ntp,
+                             uint32_t ssrc,
+                             int size,
+                             uint16_t seqNr,
+                             bool isMark) {
+  ScreamV2Tx* stx = (ScreamV2Tx*)s;
+  return stx->addTransmitted(time_ntp, ssrc, size, seqNr, isMark);
 }
 
-float ScreamTxAddTransmitted(ScreamTxC* s, unsigned int time_ntp, unsigned int ssrc, int size, unsigned int seqNr, bool isMark) {
-    ScreamTx* stx = (ScreamTx*) s;
-    return stx->addTransmitted(time_ntp, ssrc, size, seqNr, isMark);
+void ScreamTxIncomingStdFeedbackBuf(ScreamV2Tx* s,
+                                    uint32_t time_ntp,
+                                    unsigned char* buf,
+                                    int size) {
+  s->incomingStandardizedFeedback(time_ntp, buf, size);
 }
 
-void ScreamTxIncomingStdFeedback(ScreamTxC* s,
-        unsigned int time_ntp,
-        void* buf,
-        int size) {
-    ScreamTx* stx = (ScreamTx*) s;
-    unsigned char* chptr =  (unsigned char*) buf;
-    stx->incomingStandardizedFeedback(time_ntp, chptr, size);
+void ScreamTxIncomingStdFeedback(ScreamV2Tx* s,
+                                 uint32_t time_ntp,
+                                 int streamId,
+                                 uint32_t timestamp,
+                                 uint16_t seqNr,
+                                 uint8_t ceBits,
+                                 bool isLast) {
+  s->incomingStandardizedFeedback(time_ntp, streamId, timestamp, seqNr, ceBits,
+                                  isLast);
 }
 
-float ScreamTxGetTargetBitrate(ScreamTxC* s, unsigned int ssrc) {
-    ScreamTx* stx = (ScreamTx*) s;
-    return stx->getTargetBitrate(ssrc);
+float ScreamTxGetTargetBitrate(ScreamV2Tx* s,
+                               uint32_t time_ntp,
+                               uint32_t ssrc) {
+  return s->getTargetBitrate(time_ntp, ssrc);
 }
 
-char* ScreamTxGetStatistics(ScreamTxC* s, unsigned int time_ntp, unsigned int clear) {
-    ScreamTx* stx = (ScreamTx*) s;
-    char * buf = (char*) malloc(sizeof(char) * 1000);
-    stx->getLog(time_ntp, buf, clear == 1);
-    return buf;
+void ScreamTxGetStatistics(ScreamV2Tx* s, float time_ntp, char* result) {
+  s->getStatistics(time_ntp, result);
 }

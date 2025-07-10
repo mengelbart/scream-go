@@ -65,7 +65,7 @@ public:
 			int& size);
 
 		/*
-		* Get SCReAM standardized RTCP feedback for OOO RTP packets, i.e packets that
+		* Get SCReAM standardized RTCP feedback for OOO RTP packets, i.e packets that 
 		* are received more than kReportedRtpPackets behind highestSeqNrTx
 		* return FALSE if no pending feedback available
 		*/
@@ -109,7 +109,7 @@ public:
 	bool checkIfFlushAck();
 
 	/*
-	* At least one stream has received OOO RTP packets, this necessitates transmission of
+	* At least one stream has received OOO RTP packets, this necessitates transmission of 
 	*  extra RTCP packets to cover the hole
 	*/
 	bool isOooDetected();

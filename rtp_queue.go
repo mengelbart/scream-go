@@ -2,7 +2,10 @@ package scream
 
 import "C"
 import (
+	"runtime/cgo"
 	"sync"
+	"time"
+	"unsafe"
 )
 
 // RTPQueue implements a simple RTP packet queue. One RTPQueue should be used
@@ -35,61 +38,180 @@ type RTPQueue interface {
 	Clear() int
 }
 
-var srcPipelinesLock sync.Mutex
-var rtpQueues = map[uint32]RTPQueue{}
-
 //export goClear
-func goClear(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[uint32(id)].Clear())
+func goClear(context unsafe.Pointer) C.int {
+	h := *(*cgo.Handle)(context)
+	queue := h.Value().(RTPQueue)
+	return C.int(queue.Clear())
 }
 
 //export goSizeOfNextRtp
-func goSizeOfNextRtp(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[uint32(id)].SizeOfNextRTP())
+func goSizeOfNextRtp(context unsafe.Pointer) C.int {
+	h := *(*cgo.Handle)(context)
+	queue := h.Value().(RTPQueue)
+	return C.int(queue.SizeOfNextRTP())
 }
 
 //export goSeqNrOfNextRtp
-func goSeqNrOfNextRtp(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[uint32(id)].SeqNrOfNextRTP())
+func goSeqNrOfNextRtp(context unsafe.Pointer) C.int {
+	h := *(*cgo.Handle)(context)
+	queue := h.Value().(RTPQueue)
+	return C.int(queue.SeqNrOfNextRTP())
 }
 
 //export goSeqNrOfLastRtp
-func goSeqNrOfLastRtp(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[uint32(id)].SeqNrOfLastRTP())
+func goSeqNrOfLastRtp(context unsafe.Pointer) C.int {
+	h := *(*cgo.Handle)(context)
+	queue := h.Value().(RTPQueue)
+	return C.int(queue.SeqNrOfLastRTP())
 }
 
 //export goBytesInQueue
-func goBytesInQueue(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[uint32(id)].BytesInQueue())
+func goBytesInQueue(context unsafe.Pointer) C.int {
+	h := *(*cgo.Handle)(context)
+	queue := h.Value().(RTPQueue)
+	return C.int(queue.BytesInQueue())
 }
 
 //export goSizeOfQueue
-func goSizeOfQueue(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[uint32(id)].SizeOfQueue())
+func goSizeOfQueue(context unsafe.Pointer) C.int {
+	h := *(*cgo.Handle)(context)
+	queue := h.Value().(RTPQueue)
+	return C.int(queue.SizeOfQueue())
 }
 
 //export goGetDelay
-func goGetDelay(id C.int, currTs C.float) C.float {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.float(rtpQueues[uint32(id)].GetDelay(float64(currTs)))
+func goGetDelay(context unsafe.Pointer, currTs C.float) C.float {
+	h := *(*cgo.Handle)(context)
+	queue, ok := h.Value().(RTPQueue)
+	if !ok {
+		panic("got invalid pointer")
+	}
+	x := queue.GetDelay(float64(currTs))
+	d := C.float(x)
+	return d
 }
 
 //export goGetSizeOfLastFrame
-func goGetSizeOfLastFrame(id C.int) C.int {
-	srcPipelinesLock.Lock()
-	defer srcPipelinesLock.Unlock()
-	return C.int(rtpQueues[uint32(id)].GetSizeOfLastFrame())
+func goGetSizeOfLastFrame(context unsafe.Pointer) C.int {
+	h := *(*cgo.Handle)(context)
+	queue := h.Value().(RTPQueue)
+	return C.int(queue.GetSizeOfLastFrame())
+}
+
+var _ RTPQueue = (*Queue[Packet])(nil)
+
+type Packet interface {
+	Size() int
+	SequenceNumber() uint16
+	Timestamp() time.Time
+}
+
+type Queue[T Packet] struct {
+	lock sync.RWMutex
+	data []T
+}
+
+func NewQueue[T Packet]() *Queue[T] {
+	return &Queue[T]{
+		lock: sync.RWMutex{},
+		data: make([]T, 0),
+	}
+}
+
+// BytesInQueue implements RTPQueue.
+func (q *Queue[T]) BytesInQueue() int {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	res := 0
+	for _, p := range q.data {
+		res += p.Size()
+	}
+	return res
+}
+
+// Clear implements RTPQueue.
+func (q *Queue[T]) Clear() int {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	size := len(q.data)
+	q.data = make([]T, 0)
+	return size
+}
+
+// GetDelay implements RTPQueue.
+func (q *Queue[T]) GetDelay(ts float64) float64 {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	if len(q.data) == 0 {
+		return 0
+	}
+	t := q.data[0].Timestamp()
+	tsf := float64(toNTP(t)) / 65536.0
+	d := ts - tsf
+	return max(0, d)
+}
+
+// GetSizeOfLastFrame implements RTPQueue.
+func (q *Queue[T]) GetSizeOfLastFrame() int {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	if len(q.data) == 0 {
+		return 0
+	}
+	return q.data[len(q.data)-1].Size()
+}
+
+// SeqNrOfLastRTP implements RTPQueue.
+func (q *Queue[T]) SeqNrOfLastRTP() uint16 {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	if len(q.data) == 0 {
+		return 0
+	}
+	return q.data[len(q.data)-1].SequenceNumber()
+}
+
+// SeqNrOfNextRTP implements RTPQueue.
+func (q *Queue[T]) SeqNrOfNextRTP() uint16 {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	if len(q.data) == 0 {
+		return 0
+	}
+	return q.data[0].SequenceNumber()
+}
+
+// SizeOfNextRTP implements RTPQueue.
+func (q *Queue[T]) SizeOfNextRTP() int {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	if len(q.data) == 0 {
+		return 0
+	}
+	return q.data[0].Size()
+}
+
+// SizeOfQueue implements RTPQueue.
+func (q *Queue[T]) SizeOfQueue() int {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	return len(q.data)
+}
+
+func (q *Queue[T]) Enqueue(pkt T) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	q.data = append(q.data, pkt)
+}
+
+func (q *Queue[T]) Dequeue() (T, bool) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	if len(q.data) == 0 {
+		return *new(T), false
+	}
+	var next T
+	next, q.data = q.data[0], q.data[1:]
+	return next, true
 }
