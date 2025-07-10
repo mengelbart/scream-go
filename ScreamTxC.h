@@ -7,36 +7,50 @@
 #ifndef SCREAM_TX_H
 #define SCREAM_TX_H
 
+#include "RtpQueueC.h"
+
 #ifdef __cplusplus
+#include "include/ScreamTx.h"
 extern "C" {
+#else
+typedef struct ScreamV2Tx ScreamV2Tx;
 #endif
 
 #include <stdbool.h>
+#include <stdint.h>
 
-    typedef void* RtpQueueIfaceC;
-    RtpQueueIfaceC* RtpQueueIfaceInit(int);
-    void RtpQueueIfaceFree(RtpQueueIfaceC*);
+ScreamV2Tx* ScreamTxInit();
+void ScreamTxFree(ScreamV2Tx*);
 
-    typedef void* ScreamTxC;
-    ScreamTxC* ScreamTxInit(void);
-    void ScreamTxFree(ScreamTxC*);
+void ScreamTxRegisterNewStream(ScreamV2Tx*,
+                               RtpQueueC*,
+                               uint32_t,
+                               float,
+                               float,
+                               float,
+                               float);
+void ScreamTxNewMediaFrame(ScreamV2Tx*, uint32_t, uint32_t, int, bool);
+float ScreamTxIsOkToTransmit(ScreamV2Tx*, uint32_t, uint32_t);
+float ScreamTxAddTransmitted(ScreamV2Tx*,
+                             uint32_t,
+                             uint32_t,
+                             int,
+                             uint16_t,
+                             bool);
+void ScreamTxIncomingStdFeedbackBuf(ScreamV2Tx*,
+                                    uint32_t,
+                                    unsigned char*,
+                                    int size);
+void ScreamTxIncomingStdFeedback(ScreamV2Tx*,
+                                 uint32_t,
+                                 int,
+                                 uint32_t,
+                                 uint16_t,
+                                 uint8_t,
+                                 bool);
+float ScreamTxGetTargetBitrate(ScreamV2Tx*, uint32_t, uint32_t);
 
-    void ScreamTxRegisterNewStream(ScreamTxC*,
-            RtpQueueIfaceC*,
-            unsigned int,
-            float,
-            float,
-            float,
-            float);
-    void ScreamTxNewMediaFrame(ScreamTxC*, unsigned int, unsigned int, int);
-    float ScreamTxIsOkToTransmit(ScreamTxC*, unsigned int, unsigned int);
-    float ScreamTxAddTransmitted(ScreamTxC*, unsigned int, unsigned int, int, unsigned int, bool);
-    void ScreamTxIncomingStdFeedback(ScreamTxC*,
-        unsigned int,
-        void*,
-        int size);
-    float ScreamTxGetTargetBitrate(ScreamTxC*, unsigned int);
-    char* ScreamTxGetStatistics(ScreamTxC*, unsigned int, unsigned int);
+void ScreamTxGetStatistics(ScreamV2Tx*, float, char*);
 
 #ifdef __cplusplus
 }

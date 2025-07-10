@@ -7,40 +7,36 @@
 #ifndef SCREAM_RX_H
 #define SCREAM_RX_H
 
-
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
+#include "include/ScreamRx.h"
 extern "C" {
+#else
+typedef struct ScreamRx ScreamRx;
 #endif
 
 #include <stdbool.h>
 
-    typedef struct {
-        int size;
-        bool result;
-    } Feedback;
+ScreamRx* ScreamRxInit(uint32_t ssrc);
+void ScreamRxFree(ScreamRx*);
 
-    typedef void* ScreamRxC;
-    ScreamRxC* ScreamRxInit(unsigned int ssrc);
-    void ScreamRxFree(ScreamRxC*);
-
-    void ScreamRxReceive(ScreamRxC* s,
-        uint32_t time_ntp,
-        void* rtpPacket,
-        uint32_t ssrc,
-        int size,
-        uint16_t seqNr,
-        uint8_t ceBits,
-        bool isMark,
-        uint32_t timeStamp);
-    bool ScreamRxIsFeedback(ScreamRxC*, unsigned int);
-    Feedback* ScreamRxGetFeedback(ScreamRxC*, unsigned int, bool, unsigned char *buf);
-
-    bool ScreamRxGetFeedbackResult(Feedback*);
-    int ScreamRxGetFeedbackSize(Feedback*);
-    unsigned char* ScreamRxGetFeedbackBuffer(Feedback*);
+void ScreamRxReceive(ScreamRx* s,
+                     uint32_t time_ntp,
+                     void* rtpPacket,
+                     uint32_t ssrc,
+                     int size,
+                     uint16_t seqNr,
+                     uint8_t ceBits,
+                     bool isMark,
+                     uint32_t timeStamp);
+bool ScreamRxIsFeedback(ScreamRx*, uint32_t);
+bool ScreamRxGetFeedback(ScreamRx*,
+                         uint32_t,
+                         bool,
+                         unsigned char* buf,
+                         int* size);
 
 #ifdef __cplusplus
 }

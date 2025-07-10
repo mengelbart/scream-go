@@ -5,24 +5,30 @@
 package scream
 
 /*
-#cgo CPPFLAGS: -Wno-overflow -Wno-write-strings
 #include "ScreamTxC.h"
+#include "RtpQueueC.h"
 #include <stdlib.h>
 */
 import "C"
 import (
+	"runtime"
+	"runtime/cgo"
+	"time"
 	"unsafe"
 )
 
 // Tx implements the sender side of SCReAM
 type Tx struct {
-	screamTx *C.ScreamTxC
+	screamTx *C.ScreamV2Tx
+	pinner   *runtime.Pinner
+	queues   []*cgo.Handle
 }
 
 // NewTx creates a new Tx instance.
 func NewTx() *Tx {
 	return &Tx{
 		screamTx: C.ScreamTxInit(),
+		pinner:   &runtime.Pinner{},
 	}
 }
 
@@ -31,17 +37,26 @@ func NewTx() *Tx {
 // It is recommended that at least one stream has priority 1.0.
 // Bitrates are specified in bps
 func (t *Tx) RegisterNewStream(rtpQueue RTPQueue, ssrc uint32, priority, minBitrate, startBitrate, maxBitrate float64) {
-	srcPipelinesLock.Lock()
-	rtpQueues[ssrc] = rtpQueue
-	srcPipelinesLock.Unlock()
-	rtpQueueC := C.RtpQueueIfaceInit(C.int(ssrc))
+	h := cgo.NewHandle(rtpQueue)
+	t.queues = append(t.queues, &h)
+	t.pinner.Pin(&h)
+	rtpQueueC := C.RtpQueueCInit(unsafe.Pointer(&h))
 	C.ScreamTxRegisterNewStream(t.screamTx, rtpQueueC, C.uint(ssrc), C.float(priority), C.float(minBitrate), C.float(startBitrate), C.float(maxBitrate))
+}
+
+// Close closes t and frees all resources.
+func (t *Tx) Close() error {
+	t.pinner.Unpin()
+	for _, q := range t.queues {
+		q.Delete()
+	}
+	return nil
 }
 
 // NewMediaFrame should be called for each new video frame.
 // IsOkToTransmit should be called after newMediaFrame
-func (t *Tx) NewMediaFrame(ntpTime uint64, ssrc uint32, bytesRTP int) {
-	C.ScreamTxNewMediaFrame(t.screamTx, C.uint(ntpTime), C.uint(ssrc), C.int(bytesRTP))
+func (t *Tx) NewMediaFrame(ts time.Time, ssrc uint32, bytesRTP int, isMarker bool) {
+	C.ScreamTxNewMediaFrame(t.screamTx, C.uint32_t(toNTP32(ts)), C.uint32_t(ssrc), C.int(bytesRTP), C.bool(isMarker))
 }
 
 // IsOkToTransmit determines if an RTP packet with ssrc can be transmitted.
@@ -56,25 +71,25 @@ func (t *Tx) NewMediaFrame(ntpTime uint64, ssrc uint32, bytesRTP int) {
 // call to isOkToTransmit.
 //
 // -1.0: No RTP packet available to transmit or send window is not large enough
-func (t *Tx) IsOkToTransmit(ntpTime uint64, ssrc uint32) float64 {
-	return float64(C.ScreamTxIsOkToTransmit(t.screamTx, C.uint(ntpTime), C.uint(ssrc)))
+func (t *Tx) IsOkToTransmit(ts time.Time, ssrc uint32) float64 {
+	return float64(C.ScreamTxIsOkToTransmit(t.screamTx, C.uint(toNTP32(ts)), C.uint(ssrc)))
 }
 
 // AddTransmitted adds a packet to list of transmitted packets. Should be called when an
 // RTP packet was transmitted. AddTransmitted returns the time until IsOkToTransmit can be
 // called again.
-func (t *Tx) AddTransmitted(ntpTime uint64, ssrc uint32, size int, seqNr uint16, isMark bool) float64 {
-	return float64(C.ScreamTxAddTransmitted(t.screamTx, C.uint(ntpTime), C.uint(ssrc), C.int(size), C.uint(seqNr), C.bool(isMark)))
+func (t *Tx) AddTransmitted(ts time.Time, ssrc uint32, size int, seqNr uint16, isMark bool) float64 {
+	return float64(C.ScreamTxAddTransmitted(t.screamTx, C.uint32_t(toNTP32(ts)), C.uint32_t(ssrc), C.int(size), C.uint16_t(seqNr), C.bool(isMark)))
 }
 
 // IncomingStandardizedFeedback parses an incoming standardized feedback according to
 // https://tools.ietf.org/wg/avtcore/draft-ietf-avtcore-cc-feedback-message/
 // Current implementation implements -02 version and assumes that SR/RR or other
 // non-CC feedback is stripped.
-func (t *Tx) IncomingStandardizedFeedback(ntpTime uint64, buf []byte) {
-	c := make([]byte, len(buf))
-	copy(c, buf)
-	C.ScreamTxIncomingStdFeedback(t.screamTx, C.uint(ntpTime), unsafe.Pointer(&c[0]), C.int(len(c)))
+func (t *Tx) IncomingStandardizedFeedback(ts time.Time, buf []byte) {
+	buffer := C.CBytes(buf)
+	defer C.free(buffer)
+	C.ScreamTxIncomingStdFeedbackBuf(t.screamTx, C.uint(toNTP32(ts)), (*C.uchar)(buffer), C.int(len(buf)))
 }
 
 // GetTargetBitrate returns the target bitrate for the stream with ssrc.
@@ -86,17 +101,15 @@ func (t *Tx) IncomingStandardizedFeedback(ntpTime uint64, buf []byte) {
 //
 // Function returns -1 if a loss is detected, this signal can be used to
 // request a new key frame from a video encoder.
-func (t *Tx) GetTargetBitrate(ssrc uint32) float64 {
-	return float64(C.ScreamTxGetTargetBitrate(t.screamTx, C.uint(ssrc)))
+func (t *Tx) GetTargetBitrate(ts time.Time, ssrc uint32) float64 {
+	return float64(C.ScreamTxGetTargetBitrate(t.screamTx, C.uint32_t(toNTP32(ts)), C.uint32_t(ssrc)))
 }
 
 // GetStatistics returns some overall SCReAM statistics.
-func (t *Tx) GetStatistics(ntpTime uint64, clear bool) string {
-	clearInt := uint(0)
-	if clear {
-		clearInt = 1
-	}
-	buf := C.ScreamTxGetStatistics(t.screamTx, C.uint(ntpTime), C.uint(clearInt))
-	defer C.free(unsafe.Pointer(buf))
-	return C.GoString(buf)
+func (t *Tx) GetStatistics(ntpTime time.Time) string {
+	buffer := C.malloc(C.size_t(1024))
+	defer C.free(buffer)
+	tsf := float64(toNTP(ntpTime)) / 65536.0
+	C.ScreamTxGetStatistics(t.screamTx, C.float(tsf), (*C.char)(buffer))
+	return C.GoString((*C.char)(buffer))
 }
