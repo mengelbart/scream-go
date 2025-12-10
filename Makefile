@@ -12,4 +12,4 @@ libscream.a: scream/code/ScreamTx.o scream/code/ScreamV2TxStream.o scream/code/S
 	g++ -Wno-overflow -Wno-write-strings -O2 -o $@ -c $^
 
 clean:
-	rm -f *.o *.so *.a $(TARGET)
+	rm -f *.o *.so *.a
