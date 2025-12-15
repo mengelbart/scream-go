@@ -6,9 +6,32 @@
 
 #include "include/ScreamTx.h"
 
-ScreamV2Tx* ScreamTxInit() {
-  auto s = new ScreamV2Tx();
+ScreamV2Tx* ScreamTxInit(bool isL4s) {
+  auto s = new ScreamV2Tx(
+    0.7,
+    0.7,
+    0.06f,
+    100 * 1000 / 8,
+    1.5f,
+    1.5f,
+    2.0f,
+    0.05f,
+    isL4s,
+    5.0f,
+    false,
+    false
+  );
   s->enablePacketPacing(false);
+
+  int mtu = 1200;
+	s->setCwndMinLow((mtu+12)*2);
+	s->enableRelaxedPacing(false);
+
+
+  int mtuList[10];
+  int nMtuListItems = 1;
+  int minPktsInFlight = 0;
+	s->setMssListMinPacketsInFlight(mtuList, nMtuListItems, minPktsInFlight);
   return s;
 }
 
@@ -22,12 +45,13 @@ void ScreamTxRegisterNewStream(ScreamV2Tx* s,
                                float priority,
                                float minBitrate,
                                float startBitrate,
-                               float maxBitrate) {
+                               float maxBitrate,
+                               float maxRtpQueueDelay) {
   ScreamV2Tx* stx = (ScreamV2Tx*)s;
   RtpQueueIface* rtpq = (RtpQueueIface*)rtpQueue;
 
   stx->registerNewStream(rtpq, ssrc, priority, minBitrate, startBitrate,
-                         maxBitrate);
+                         maxBitrate, maxRtpQueueDelay);
 }
 
 void ScreamTxNewMediaFrame(ScreamV2Tx* s,

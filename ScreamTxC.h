@@ -19,12 +19,13 @@ typedef struct ScreamV2Tx ScreamV2Tx;
 #include <stdbool.h>
 #include <stdint.h>
 
-ScreamV2Tx* ScreamTxInit();
+ScreamV2Tx* ScreamTxInit(bool isL4s);
 void ScreamTxFree(ScreamV2Tx*);
 
 void ScreamTxRegisterNewStream(ScreamV2Tx*,
                                RtpQueueC*,
                                uint32_t,
+                               float,
                                float,
                                float,
                                float,
