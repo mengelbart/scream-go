@@ -7,7 +7,7 @@
 #include "include/ScreamRx.h"
 
 ScreamRx* ScreamRxInit(uint32_t ssrc) {
-  return new ScreamRx(ssrc);
+  return new ScreamRx(ssrc, -1, 64);
 }
 
 void ScreamRxFree(ScreamRx* s) {
@@ -36,4 +36,28 @@ bool ScreamRxGetFeedback(ScreamRx* s,
                          unsigned char* buf,
                          int* size) {
   return s->createStandardizedFeedback(time_ntp, isMark, buf, *size);
+}
+
+bool ScreamRxCheckIfFlushAck(ScreamRx* s) {
+  return s->checkIfFlushAck();
+}
+
+uint32_t ScreamRxGetRtcpFbInterval(ScreamRx* s) {
+  return s->getRtcpFbInterval();
+}
+
+uint32_t ScreamRxGetLastFeedbackT(ScreamRx* s) {
+  return s->getLastFeedbackT();
+}
+
+bool ScreamRxIsOooDetected(ScreamRx* s) {
+  return s->isOooDetected();
+}
+
+bool ScreamRxGetFeedbackOoo(ScreamRx* s,
+                            uint32_t time_ntp,
+                            bool isMark,
+                            unsigned char* buf,
+                            int* size) {
+  return s->createStandardizedFeedbackOoo(time_ntp, isMark, buf, *size);
 }

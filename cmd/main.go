@@ -7,6 +7,6 @@ import (
 )
 
 func main() {
-	tx := scream.NewTx()
+	tx := scream.NewTx(false)
 	log.Printf("got tx: %v", tx)
 }

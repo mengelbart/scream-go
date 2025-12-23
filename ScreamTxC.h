@@ -37,7 +37,10 @@ float ScreamTxAddTransmitted(ScreamV2Tx*,
                              uint32_t,
                              int,
                              uint16_t,
-                             bool);
+                             bool,
+                             float,
+                             uint32_t
+                            );
 void ScreamTxIncomingStdFeedbackBuf(ScreamV2Tx*,
                                     uint32_t,
                                     unsigned char*,

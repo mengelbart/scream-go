@@ -15,10 +15,10 @@ type RTPQueue interface {
 	SizeOfNextRTP() int
 
 	// SeqNrOfNextRTP returns the RTP sequence number of the next item in the queue
-	SeqNrOfNextRTP() uint16
+	SeqNrOfNextRTP() int
 
 	// SeqNrOfLastRTP returns the RTP sequence number of the last item in the queue
-	SeqNrOfLastRTP() uint16
+	SeqNrOfLastRTP() int
 
 	// BytesInQueue returns the total number of bytes in the queue, i.e. the
 	// sum of the sizes of all items in the queue.
@@ -163,23 +163,23 @@ func (q *Queue[T]) GetSizeOfLastFrame() int {
 }
 
 // SeqNrOfLastRTP implements RTPQueue.
-func (q *Queue[T]) SeqNrOfLastRTP() uint16 {
+func (q *Queue[T]) SeqNrOfLastRTP() int {
 	q.lock.RLock()
 	defer q.lock.RUnlock()
 	if len(q.data) == 0 {
-		return 0
+		return -1
 	}
-	return q.data[len(q.data)-1].SequenceNumber()
+	return int(q.data[len(q.data)-1].SequenceNumber())
 }
 
 // SeqNrOfNextRTP implements RTPQueue.
-func (q *Queue[T]) SeqNrOfNextRTP() uint16 {
+func (q *Queue[T]) SeqNrOfNextRTP() int {
 	q.lock.RLock()
 	defer q.lock.RUnlock()
 	if len(q.data) == 0 {
-		return 0
+		return -1
 	}
-	return q.data[0].SequenceNumber()
+	return int(q.data[0].SequenceNumber())
 }
 
 // SizeOfNextRTP implements RTPQueue.

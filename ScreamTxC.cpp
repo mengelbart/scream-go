@@ -15,23 +15,10 @@ ScreamV2Tx* ScreamTxInit(bool isL4s) {
     1.5f,
     1.5f,
     2.0f,
-    0.05f,
-    isL4s,
-    5.0f,
-    false,
-    false
+    0.45f,
+    isL4s
   );
-  s->enablePacketPacing(false);
 
-  int mtu = 1200;
-	s->setCwndMinLow((mtu+12)*2);
-	s->enableRelaxedPacing(false);
-
-
-  int mtuList[10];
-  int nMtuListItems = 1;
-  int minPktsInFlight = 0;
-	s->setMssListMinPacketsInFlight(mtuList, nMtuListItems, minPktsInFlight);
   return s;
 }
 
@@ -51,7 +38,7 @@ void ScreamTxRegisterNewStream(ScreamV2Tx* s,
   RtpQueueIface* rtpq = (RtpQueueIface*)rtpQueue;
 
   stx->registerNewStream(rtpq, ssrc, priority, minBitrate, startBitrate,
-                         maxBitrate, maxRtpQueueDelay);
+                         maxBitrate, maxRtpQueueDelay, false, 0.0);
 }
 
 void ScreamTxNewMediaFrame(ScreamV2Tx* s,
@@ -71,9 +58,12 @@ float ScreamTxAddTransmitted(ScreamV2Tx* s,
                              uint32_t ssrc,
                              int size,
                              uint16_t seqNr,
-                             bool isMark) {
+                             bool isMark,
+                             float rtpQueueDelay,
+                             uint32_t ts
+                            ) {
   ScreamV2Tx* stx = (ScreamV2Tx*)s;
-  return stx->addTransmitted(time_ntp, ssrc, size, seqNr, isMark);
+  return stx->addTransmitted(time_ntp, ssrc, size, seqNr, isMark, rtpQueueDelay, ts);
 }
 
 void ScreamTxIncomingStdFeedbackBuf(ScreamV2Tx* s,

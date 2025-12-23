@@ -86,8 +86,17 @@ func (t *Tx) IsOkToTransmit(ntpTime uint32, ssrc uint32) float64 {
 // AddTransmitted adds a packet to list of transmitted packets. Should be called when an
 // RTP packet was transmitted. AddTransmitted returns the time until IsOkToTransmit can be
 // called again.
-func (t *Tx) AddTransmitted(ntpTime uint32, ssrc uint32, size int, seqNr uint16, isMark bool) float64 {
-	return float64(C.ScreamTxAddTransmitted(t.screamTx, C.uint32_t(ntpTime), C.uint32_t(ssrc), C.int(size), C.uint16_t(seqNr), C.bool(isMark)))
+func (t *Tx) AddTransmitted(ntpTime uint32, ssrc uint32, size int, seqNr uint16, isMark bool, rtpQeueueDelay float64, ts uint32) float64 {
+	return float64(C.ScreamTxAddTransmitted(
+		t.screamTx,
+		C.uint32_t(ntpTime),
+		C.uint32_t(ssrc),
+		C.int(size),
+		C.uint16_t(seqNr),
+		C.bool(isMark),
+		C.float(rtpQeueueDelay),
+		C.uint32_t(ts),
+	))
 }
 
 // IncomingStandardizedFeedback parses an incoming standardized feedback according to
