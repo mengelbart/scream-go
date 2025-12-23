@@ -98,8 +98,11 @@ extern "C" {
 	static const float kBytesInFlightHeadRoom = 2.0f;
 	// A multiplicative increase factor, 0.05 means that CWND can increase at most 5% per RTT
 	static const float kMultiplicativeIncreaseScalefactor = 0.05f;
+	// Packet reordering margin
+	static const float kReorderTime = 0.03f;    
 
 	static const float ntp2SecScaleFactor = 1.0f / 65536;
+	static const uint32_t sec2NtpScaleFactor = 65536u;
 
 	/*
 	* Max number of RTP packets in flight
@@ -126,7 +129,7 @@ extern "C" {
 	static const int kSrttHistBins = 200;
 	static const int kRelFrameSizeHistBins = 50;
 	static const int kMaxBytesInFlightHistSize = 20;
-	static const int kCwndIHistSize = 9;
+	static const int kCwndIHistSize = 3;
 	static const int kMssListSize = 10;
 
 	enum StatisticsItem {
@@ -231,7 +234,7 @@ extern "C" {
 		* multiplicativeIncreaseScaleFactor, indicates how fast CWND can increase when link capacity
 		*  increases. E.g 0.05 increases up tp 5% of the CWND per RTT.
 		* isL4s = true changes congestion window reaction to ECN marking to a scalable function, similar to DCTCP
-		* windowHeadroom, sets how much bytes in flight can exceed the congestion window
+		* maxWindowHeadroom, sets how much bytes in flight can exceed the congestion window
 		* enableSbd increases the delay target if competing buffer building flows are detected
 		* enableClockDriftCompensation = true compensates for the case where the endpoints clocks drift relative to one
 		*  another. Note though that clock drift is not always montonous IRL
@@ -246,7 +249,7 @@ extern "C" {
 			float bytesInFlightHeadRoom = kBytesInFlightHeadRoom,
 			float multiplicativeIncreaseScalefactor = kMultiplicativeIncreaseScalefactor,
 			bool isL4s = false,
-			float windowHeadroom = 5.0f,
+			float maxWindowHeadroom = 5.0f,
 			bool enableSbd = kEnableSbd,
 			bool enableClockDriftCompensation = false);
 
@@ -500,6 +503,14 @@ extern "C" {
 			isEnableRelaxedPacing = enable;
 		}
 
+		/**
+		* Set packet reordering margin [s]
+		*/
+		void setReorderTime(float val) {
+			reorderTime = val;
+			reorderTime_ntp = uint32_t(val * sec2NtpScaleFactor + 0.5f);
+		}
+
 		/*
 		* Get recommended MSS
 		*/
@@ -515,10 +526,35 @@ extern "C" {
 		/*
 		* Get SRtt
 		*/
-		int getSRtt() {
+		float getSRtt() {
 			return sRtt;
 		}
 
+		/*
+		* Enable/disable delay based congestion control. In certain scenarios where L4S (or ECN) is known to be 
+		* supported along the transport path it can be beneficial to disable the delay based congestion control because
+		* of the issues with clock drift and clock skipping that can harm performance if L4S is supported. 
+		*/
+		void enableDelayBasedCongestionControl(bool enable) {
+			isEnableDelayBasedCongestionControl = enable;
+		}
+
+		/*
+		* Enable/disable adaptive window headroom
+		* Recommended for cases where it is preferred to get a stable bitrate for instance 
+		* when the media encoder reacts slowly to rate changes. 
+		*/
+		void isEnableAdaptiveWindowHeadroom(bool val) {
+			enableAdaptiveWindowHeadroom = val;
+		}
+		/*
+		* Enable/disable adaptive window headroom
+		* Recommended for cases where it is preferred to get a stable bitrate for instance
+		* when the media encoder reacts slowly to rate changes.
+		*/
+		void isCwndGrowthRestrictionWhenCongested(bool val) {
+			cwndGrowthRestrictionWhenCongested = val;
+		}
 	private:
 		/*
 		* Struct for list of RTP packets in flight
@@ -797,7 +833,7 @@ extern "C" {
 		float bytesInFlightHeadRoom;
 		float multiplicativeIncreaseScalefactor;
 		bool isL4s;
-		float windowHeadroom;
+		float maxWindowHeadroom;
 		bool enableSbd;
 		bool enableClockDriftCompensation;
 
@@ -808,6 +844,7 @@ extern "C" {
 		bool isEnableRelaxedPacing;
 
 		float sRtt;
+		float sRttSh;
 		uint32_t sRtt_ntp;
 		uint32_t sRttSh_ntp;
 		uint32_t sRttShPrev_ntp;
@@ -819,6 +856,8 @@ extern "C" {
 		float queueDelay;
 		float queueDelayFractionAvg;
 		float queueDelayTarget;
+		float queueDelayDev;
+		bool isEnableDelayBasedCongestionControl;
 
 		float queueDelaySbdVar;
 		float queueDelaySbdMean;
@@ -857,6 +896,9 @@ extern "C" {
 		int maxBytesInFlight;
 		int maxBytesInFlightPrev;
 		float bytesInFlightRatio;
+		float windowHeadroom;
+		bool enableAdaptiveWindowHeadroom;
+		bool cwndGrowthRestrictionWhenCongested;
 
 		int bytesMarkedThisRtt;
 		int bytesDeliveredThisRtt;
@@ -869,13 +911,15 @@ extern "C" {
 		bool ecnCeEvent;
 		bool virtualCeEvent;
 		bool isCeThisFeedback;
-		bool isL4sActive;
 		float fractionMarked;
 		float lastFractionMarked;
 		float l4sAlpha;
+		float l4sAlphaLim;
 		float ceDensity;
 		float virtualL4sAlpha;
 		float postCongestionScale;
+		uint32_t reorderTime_ntp;
+		float reorderTime;
 		
 		float rateTransmitted;
 		float rateRtpAvg;

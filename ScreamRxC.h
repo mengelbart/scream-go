@@ -38,6 +38,17 @@ bool ScreamRxGetFeedback(ScreamRx*,
                          unsigned char* buf,
                          int* size);
 
+// Additional wrappers to expose more receiver-side logic to Go
+bool ScreamRxCheckIfFlushAck(ScreamRx*);
+uint32_t ScreamRxGetRtcpFbInterval(ScreamRx*);
+uint32_t ScreamRxGetLastFeedbackT(ScreamRx*);
+bool ScreamRxIsOooDetected(ScreamRx*);
+bool ScreamRxGetFeedbackOoo(ScreamRx*,
+                            uint32_t,
+                            bool,
+                            unsigned char* buf,
+                            int* size);
+
 #ifdef __cplusplus
 }
 #endif

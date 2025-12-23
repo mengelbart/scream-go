@@ -25,7 +25,7 @@ func NewRx(ssrc uint32) *Rx {
 }
 
 // Receive needs to be called each time an RTP packet is received
-func (r *Rx) Receive(ntpTime uint32, ssrc uint32, size int, seqNr uint16, ceBits uint8, isMark bool) {
+func (r *Rx) Receive(ntpTime uint32, ssrc uint32, size int, seqNr uint16, ceBits uint8, isMark bool, ts uint32) {
 	// currently sets timestamp to 0 since it is not used in ScreamRx.cpp
 	C.ScreamRxReceive(
 		r.screamRx,
@@ -36,7 +36,7 @@ func (r *Rx) Receive(ntpTime uint32, ssrc uint32, size int, seqNr uint16, ceBits
 		C.uint16_t(seqNr),
 		C.uint8_t(ceBits),
 		C.bool(isMark),
-		C.uint32_t(0),
+		C.uint32_t(ts),
 	)
 }
 
@@ -57,6 +57,39 @@ func (r *Rx) CreateStandardizedFeedback(ntpTime uint32, isMark bool) ([]byte, bo
 	var size C.int
 
 	ret := C.ScreamRxGetFeedback(r.screamRx, C.uint32_t(ntpTime), C.bool(isMark), (*C.uchar)(cbuf), &size)
+
+	result := C.GoBytes(cbuf, size)
+	return result, bool(ret)
+}
+
+// CheckIfFlushAck mirrors ScreamRx::checkIfFlushAck()
+func (r *Rx) CheckIfFlushAck() bool {
+	return bool(C.ScreamRxCheckIfFlushAck(r.screamRx))
+}
+
+// GetRtcpFbInterval mirrors ScreamRx::getRtcpFbInterval() and returns NTP Q16 units
+func (r *Rx) GetRtcpFbInterval() uint32 {
+	return uint32(C.ScreamRxGetRtcpFbInterval(r.screamRx))
+}
+
+// GetLastFeedbackT mirrors ScreamRx::getLastFeedbackT() and returns NTP Q16 time
+func (r *Rx) GetLastFeedbackT() uint32 {
+	return uint32(C.ScreamRxGetLastFeedbackT(r.screamRx))
+}
+
+// IsOooDetected mirrors ScreamRx::isOooDetected()
+func (r *Rx) IsOooDetected() bool {
+	return bool(C.ScreamRxIsOooDetected(r.screamRx))
+}
+
+// CreateStandardizedFeedbackOoo mirrors ScreamRx::createStandardizedFeedbackOoo()
+func (r *Rx) CreateStandardizedFeedbackOoo(ntpTime uint32, isMark bool) ([]byte, bool) {
+	buf := make([]byte, 2048)
+	cbuf := C.CBytes(buf)
+	defer C.free(cbuf)
+	var size C.int
+
+	ret := C.ScreamRxGetFeedbackOoo(r.screamRx, C.uint32_t(ntpTime), C.bool(isMark), (*C.uchar)(cbuf), &size)
 
 	result := C.GoBytes(cbuf, size)
 	return result, bool(ret)
