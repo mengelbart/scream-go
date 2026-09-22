@@ -1,8 +1,7 @@
 package scream
 
 /*
-#cgo CPPFLAGS: -Wno-overflow -Wno-write-strings -I${SRCDIR}/include
-#cgo LDFLAGS: ${SRCDIR}/libscream.a
+#cgo CXXFLAGS: -Wno-overflow -Wno-write-strings
 */
 import "C"
 import "time"

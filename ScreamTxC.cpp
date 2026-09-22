@@ -4,7 +4,7 @@
 
 #include "ScreamTxC.h"
 
-#include "include/ScreamTx.h"
+#include "ScreamTx.h"
 
 ScreamV2Tx* ScreamTxInit() {
   auto s = new ScreamV2Tx();

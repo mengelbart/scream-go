@@ -11,7 +11,7 @@
 
 #ifdef __cplusplus
 
-#include "include/RtpQueue.h"
+#include "RtpQueue.h"
 
 class RtpQueueC : public RtpQueueIface {
  public:

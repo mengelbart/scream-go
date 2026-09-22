@@ -4,7 +4,7 @@
 
 #include "ScreamRxC.h"
 
-#include "include/ScreamRx.h"
+#include "ScreamRx.h"
 
 ScreamRx* ScreamRxInit(uint32_t ssrc) {
   return new ScreamRx(ssrc);
