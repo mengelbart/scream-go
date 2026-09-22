@@ -28,7 +28,10 @@ typedef struct ScreamRx ScreamRx;
  */
 #define SCREAM_RX_MAX_FEEDBACK_SIZE 2048
 
-ScreamRx* ScreamRxInit(uint32_t ssrc);
+/* Default nReportedRtpPackets, ackDiff < 0 selects SCReAM's own default */
+int ScreamRxDefaultReportedRtpPackets();
+
+ScreamRx* ScreamRxInit(uint32_t ssrc, int ackDiff, int nReportedRtpPackets);
 void ScreamRxFree(ScreamRx*);
 
 void ScreamRxReceive(ScreamRx* s,

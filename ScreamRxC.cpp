@@ -6,8 +6,12 @@
 
 #include "ScreamRx.h"
 
-ScreamRx* ScreamRxInit(uint32_t ssrc) {
-  return new ScreamRx(ssrc);
+int ScreamRxDefaultReportedRtpPackets() {
+  return kReportedRtpPackets;
+}
+
+ScreamRx* ScreamRxInit(uint32_t ssrc, int ackDiff, int nReportedRtpPackets) {
+  return new ScreamRx(ssrc, ackDiff, nReportedRtpPackets);
 }
 
 void ScreamRxFree(ScreamRx* s) {
