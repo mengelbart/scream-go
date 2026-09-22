@@ -1,15 +1,23 @@
 package scream
 
+/*
+#include <stdint.h>
+*/
 import "C"
 import (
 	"runtime/cgo"
 	"sync"
 	"time"
-	"unsafe"
 )
 
 // RTPQueue implements a simple RTP packet queue. One RTPQueue should be used
 // per SSRC stream.
+//
+// Throughout this interface "next" refers to the oldest item, i.e. the one that
+// will be dequeued next, and "last" to the most recently enqueued item.
+//
+// The methods are called as callbacks from within Tx calls, on the goroutine
+// that is calling the Tx. They must not call back into that Tx.
 type RTPQueue interface {
 	// SizeOfNextRTP returns the size of the next item in the queue.
 	SizeOfNextRTP() int
@@ -27,75 +35,96 @@ type RTPQueue interface {
 	// SizeOfQueue returns the number of items in the queue.
 	SizeOfQueue() int
 
-	// GetDelay returns the delay of the last item in the queue.
-	// ts is given in seconds.
+	// GetDelay returns how long the next item has been in the queue.
+	// ts is given in seconds in the NTP short format domain, i.e. it wraps
+	// every 2^16 seconds.
 	GetDelay(ts float64) float64
 
-	// GetSizeOfLastFrame returns the size of the latest pushed item.
+	// GetSizeOfLastFrame returns the total size of the most recently enqueued
+	// frame, i.e. the sum of the sizes of its RTP packets.
 	GetSizeOfLastFrame() int
 
-	// Clear empties the queue.
+	// Clear empties the queue and returns the number of items dropped.
 	Clear() int
 }
 
+// queueFromContext resolves the callback context to the RTPQueue it was
+// registered with. It returns nil if the context does not hold one, so that a
+// callback returns a zero value instead of panicking across the C boundary.
+func queueFromContext(context C.uintptr_t) RTPQueue {
+	queue, _ := cgo.Handle(context).Value().(RTPQueue)
+	return queue
+}
+
 //export goClear
-func goClear(context unsafe.Pointer) C.int {
-	h := *(*cgo.Handle)(context)
-	queue := h.Value().(RTPQueue)
+func goClear(context C.uintptr_t) C.int {
+	queue := queueFromContext(context)
+	if queue == nil {
+		return 0
+	}
 	return C.int(queue.Clear())
 }
 
 //export goSizeOfNextRtp
-func goSizeOfNextRtp(context unsafe.Pointer) C.int {
-	h := *(*cgo.Handle)(context)
-	queue := h.Value().(RTPQueue)
+func goSizeOfNextRtp(context C.uintptr_t) C.int {
+	queue := queueFromContext(context)
+	if queue == nil {
+		return 0
+	}
 	return C.int(queue.SizeOfNextRTP())
 }
 
 //export goSeqNrOfNextRtp
-func goSeqNrOfNextRtp(context unsafe.Pointer) C.int {
-	h := *(*cgo.Handle)(context)
-	queue := h.Value().(RTPQueue)
+func goSeqNrOfNextRtp(context C.uintptr_t) C.int {
+	queue := queueFromContext(context)
+	if queue == nil {
+		return 0
+	}
 	return C.int(queue.SeqNrOfNextRTP())
 }
 
 //export goSeqNrOfLastRtp
-func goSeqNrOfLastRtp(context unsafe.Pointer) C.int {
-	h := *(*cgo.Handle)(context)
-	queue := h.Value().(RTPQueue)
+func goSeqNrOfLastRtp(context C.uintptr_t) C.int {
+	queue := queueFromContext(context)
+	if queue == nil {
+		return 0
+	}
 	return C.int(queue.SeqNrOfLastRTP())
 }
 
 //export goBytesInQueue
-func goBytesInQueue(context unsafe.Pointer) C.int {
-	h := *(*cgo.Handle)(context)
-	queue := h.Value().(RTPQueue)
+func goBytesInQueue(context C.uintptr_t) C.int {
+	queue := queueFromContext(context)
+	if queue == nil {
+		return 0
+	}
 	return C.int(queue.BytesInQueue())
 }
 
 //export goSizeOfQueue
-func goSizeOfQueue(context unsafe.Pointer) C.int {
-	h := *(*cgo.Handle)(context)
-	queue := h.Value().(RTPQueue)
+func goSizeOfQueue(context C.uintptr_t) C.int {
+	queue := queueFromContext(context)
+	if queue == nil {
+		return 0
+	}
 	return C.int(queue.SizeOfQueue())
 }
 
 //export goGetDelay
-func goGetDelay(context unsafe.Pointer, currTs C.float) C.float {
-	h := *(*cgo.Handle)(context)
-	queue, ok := h.Value().(RTPQueue)
-	if !ok {
-		panic("got invalid pointer")
+func goGetDelay(context C.uintptr_t, currTs C.float) C.float {
+	queue := queueFromContext(context)
+	if queue == nil {
+		return 0
 	}
-	x := queue.GetDelay(float64(currTs))
-	d := C.float(x)
-	return d
+	return C.float(queue.GetDelay(float64(currTs)))
 }
 
 //export goGetSizeOfLastFrame
-func goGetSizeOfLastFrame(context unsafe.Pointer) C.int {
-	h := *(*cgo.Handle)(context)
-	queue := h.Value().(RTPQueue)
+func goGetSizeOfLastFrame(context C.uintptr_t) C.int {
+	queue := queueFromContext(context)
+	if queue == nil {
+		return 0
+	}
 	return C.int(queue.GetSizeOfLastFrame())
 }
 
@@ -107,6 +136,7 @@ type Packet interface {
 	Timestamp() time.Time
 }
 
+// Queue is a RTPQueue backed by a slice. It is safe for concurrent use.
 type Queue[T Packet] struct {
 	lock sync.RWMutex
 	data []T
@@ -146,13 +176,19 @@ func (q *Queue[T]) GetDelay(ts float64) float64 {
 	if len(q.data) == 0 {
 		return 0
 	}
-	t := q.data[0].Timestamp()
-	tsf := float64(toNTP(t)) / 65536.0
+	tsf := float64(toNTP32(q.data[0].Timestamp())) / 65536.0
 	d := ts - tsf
+	if d < -ntpShortHalfRange {
+		// ts wrapped since the packet was enqueued
+		d += ntpShortRange
+	}
 	return max(0, d)
 }
 
-// GetSizeOfLastFrame implements RTPQueue.
+// GetSizeOfLastFrame implements RTPQueue. Packet carries no marker bit, so
+// Queue cannot detect frame boundaries and returns the size of the last packet
+// instead of the size of the last frame. SCReAM does not currently use this
+// value. Implement RTPQueue directly if the exact value is needed.
 func (q *Queue[T]) GetSizeOfLastFrame() int {
 	q.lock.RLock()
 	defer q.lock.RUnlock()

@@ -7,13 +7,15 @@
 #ifndef RTP_QUEUE_C
 #define RTP_QUEUE_C
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 
 #include "include/RtpQueue.h"
 
 class RtpQueueC : public RtpQueueIface {
  public:
-  RtpQueueC(void*);
+  RtpQueueC(uintptr_t);
 
   int clear();
   int sizeOfNextRtp();
@@ -25,7 +27,11 @@ class RtpQueueC : public RtpQueueIface {
   int getSizeOfLastFrame();
 
  private:
-  void* ctx;
+  /*
+   * ctx is a runtime/cgo.Handle referring to the Go RTPQueue that backs this
+   * queue. It is an integer, not a pointer, so it needs no pinning.
+   */
+  uintptr_t ctx;
 };
 
 extern "C" {
@@ -33,17 +39,17 @@ extern "C" {
 typedef struct RtpQueueC RtpQueueC;
 #endif
 
-RtpQueueC* RtpQueueCInit(void*);
+RtpQueueC* RtpQueueCInit(uintptr_t);
 void RtpQueueCFree(RtpQueueC*);
 
-int goClear(void*);
-int goSizeOfNextRtp(void*);
-int goSeqNrOfNextRtp(void*);
-int goSeqNrOfLastRtp(void*);
-int goBytesInQueue(void*);
-int goSizeOfQueue(void*);
-float goGetDelay(void*, float);
-int goGetSizeOfLastFrame(void*);
+int goClear(uintptr_t);
+int goSizeOfNextRtp(uintptr_t);
+int goSeqNrOfNextRtp(uintptr_t);
+int goSeqNrOfLastRtp(uintptr_t);
+int goBytesInQueue(uintptr_t);
+int goSizeOfQueue(uintptr_t);
+float goGetDelay(uintptr_t, float);
+int goGetSizeOfLastFrame(uintptr_t);
 
 #ifdef __cplusplus
 }

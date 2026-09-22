@@ -7,6 +7,13 @@ package scream
 import "C"
 import "time"
 
+const (
+	// ntpShortRange is the period of the NTP short format in seconds.
+	ntpShortRange = 1 << 16
+
+	ntpShortHalfRange = ntpShortRange / 2
+)
+
 func toNTP32(t time.Time) uint32 {
 	return uint32(toNTP(t) >> 16)
 }
