@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 #
+# Copyright (c) Mathis Engelbart. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+#
 # Copies the SCReAM sources needed by this wrapper out of the Git submodule
 # into the package directory, where cgo compiles them.
 #
