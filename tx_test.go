@@ -5,6 +5,8 @@
 package scream
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"math"
 	"runtime"
@@ -368,5 +370,101 @@ func TestTxCallbacksUnderGC(t *testing.T) {
 		}
 		runtime.GC()
 		tx.GetTargetBitrate(now, ssrc)
+	}
+}
+
+// ccfb builds an RFC 8888 feedback packet with one report block per numReports
+// entry. A zero entry produces an empty report block.
+func ccfb(ssrc uint32, numReports ...int) []byte {
+	buf := make([]byte, 8)
+	buf[0] = 0x80 | 11
+	buf[1] = 205
+	binary.BigEndian.PutUint32(buf[4:], 1)
+	for _, n := range numReports {
+		block := make([]byte, 8+2*n)
+		binary.BigEndian.PutUint32(block, ssrc)
+		binary.BigEndian.PutUint16(block[4:], 100)
+		binary.BigEndian.PutUint16(block[6:], uint16(n))
+		for i := 0; i < n; i++ {
+			binary.BigEndian.PutUint16(block[8+2*i:], 0x8000)
+		}
+		if n%2 == 1 {
+			block = append(block, 0, 0)
+		}
+		buf = append(buf, block...)
+	}
+	buf = append(buf, 0, 0, 0, 0)
+	binary.BigEndian.PutUint16(buf[2:], uint16(len(buf)/4-1))
+	return buf
+}
+
+// SCReAM derives its metric block count as num_reports-1 in a uint16, so an
+// empty report block, which RFC 8888 allows, reads far past the buffer.
+func TestTxIncomingFeedbackEmptyReportBlock(t *testing.T) {
+	tx := NewTx()
+	defer tx.Close()
+
+	const ssrc = 1234
+	if err := tx.RegisterNewStream(NewQueue[testPacket](), ssrc, 1.0, 1e5, 5e5, 1e6); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.IncomingStandardizedFeedback(time.Now(), ccfb(ssrc, 0)); err != nil {
+		t.Fatalf("empty report block: %v", err)
+	}
+	if err := tx.IncomingStandardizedFeedback(time.Now(), ccfb(ssrc, 0, 2, 0)); err != nil {
+		t.Fatalf("mixed report blocks: %v", err)
+	}
+}
+
+func TestSanitizeStandardizedFeedback(t *testing.T) {
+	const ssrc = 1234
+	for _, tc := range []struct {
+		name string
+		buf  []byte
+		want []byte
+	}{
+		{"single block", ccfb(ssrc, 2), ccfb(ssrc, 2)},
+		{"odd block padded", ccfb(ssrc, 3), ccfb(ssrc, 3)},
+		{"empty block dropped", ccfb(ssrc, 0, 2), ccfb(ssrc, 2)},
+		{"trailing empty block dropped", ccfb(ssrc, 3, 0), ccfb(ssrc, 3)},
+		{"only empty blocks", ccfb(ssrc, 0, 0), nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := sanitizeStandardizedFeedback(tc.buf)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, tc.want) {
+				t.Fatalf("got % x, want % x", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSanitizeStandardizedFeedbackMalformed(t *testing.T) {
+	const ssrc = 1234
+	truncatedBlock := ccfb(ssrc, 2)
+	binary.BigEndian.PutUint16(truncatedBlock[14:], 3)
+	leftoverOctets := ccfb(ssrc, 1)
+	binary.BigEndian.PutUint16(leftoverOctets[14:], 0)
+	badLength := ccfb(ssrc, 2)
+	binary.BigEndian.PutUint16(badLength[2:], 9)
+
+	for _, tc := range []struct {
+		name string
+		buf  []byte
+	}{
+		{"empty", nil},
+		{"header only", ccfb(ssrc)},
+		{"not word aligned", append(ccfb(ssrc, 2), 0)},
+		{"length field too large", badLength},
+		{"block longer than packet", truncatedBlock},
+		{"leftover octets after last block", leftoverOctets},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := sanitizeStandardizedFeedback(tc.buf); !errors.Is(err, ErrMalformedFeedback) {
+				t.Fatalf("got %v, want ErrMalformedFeedback", err)
+			}
+		})
 	}
 }
