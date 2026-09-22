@@ -11,6 +11,7 @@ package scream
 */
 import "C"
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"runtime/cgo"
@@ -31,6 +32,21 @@ var (
 	// ErrMssListTooLong is returned when the MSS list is longer than SCReAM
 	// can hold.
 	ErrMssListTooLong = errors.New("mss list too long")
+
+	// ErrMalformedFeedback is returned when a congestion control feedback
+	// packet is not laid out the way SCReAM's parser assumes.
+	ErrMalformedFeedback = errors.New("malformed congestion control feedback")
+)
+
+// Layout of an RFC 8888 congestion control feedback packet.
+const (
+	// feedbackHeaderLen is the RTCP header plus the sender SSRC.
+	feedbackHeaderLen = 8
+	// feedbackBlockHeaderLen is a report block's SSRC, begin_seq and
+	// num_reports.
+	feedbackBlockHeaderLen = 8
+	// feedbackTimestampLen is the report timestamp trailing the packet.
+	feedbackTimestampLen = 4
 )
 
 // stream holds the per-stream resources that Close has to free.
@@ -224,11 +240,82 @@ func (t *Tx) AddTransmitted(ts time.Time, ssrc uint32, size int, seqNr uint16, i
 // https://tools.ietf.org/wg/avtcore/draft-ietf-avtcore-cc-feedback-message/
 // Current implementation implements -02 version and assumes that SR/RR or other
 // non-CC feedback is stripped.
-func (t *Tx) IncomingStandardizedFeedback(ts time.Time, buf []byte) {
+//
+// The buffer is validated and report blocks SCReAM cannot parse are stripped
+// before it reaches C, see sanitizeStandardizedFeedback. A buffer that fails
+// validation is dropped and ErrMalformedFeedback is returned.
+func (t *Tx) IncomingStandardizedFeedback(ts time.Time, buf []byte) error {
 	t.check()
-	buffer := C.CBytes(buf)
+	sanitized, err := sanitizeStandardizedFeedback(buf)
+	if err != nil {
+		return err
+	}
+	if sanitized == nil {
+		return nil
+	}
+	buffer := C.CBytes(sanitized)
 	defer C.free(buffer)
-	C.ScreamTxIncomingStdFeedbackBuf(t.screamTx, C.uint32_t(toNTP32(ts)), (*C.uchar)(buffer), C.int(len(buf)))
+	C.ScreamTxIncomingStdFeedbackBuf(t.screamTx, C.uint32_t(toNTP32(ts)), (*C.uchar)(buffer), C.int(len(sanitized)))
+	return nil
+}
+
+// sanitizeStandardizedFeedback validates an RFC 8888 congestion control
+// feedback packet and returns a buffer that SCReAM's parser can walk, or nil if
+// nothing is left to report.
+//
+// SCReAM reads the packet without any bounds checking: it derives the metric
+// block count as num_reports-1 in a uint16, so an empty report block underflows
+// it to 65535 and reads 128 KiB past the buffer, and it ends the block loop on
+// ptr == size-4, so a block that does not land exactly there loops off the end.
+// Both are reachable from a conforming remote, so the wrapper has to reject
+// what SCReAM would misparse and drop empty blocks, which RFC 8888 §3.1 allows
+// a receiver to send for a source it saw no packets from.
+func sanitizeStandardizedFeedback(buf []byte) ([]byte, error) {
+	// header + sender ssrc + one report block + report timestamp
+	if len(buf) < feedbackHeaderLen+feedbackBlockHeaderLen+feedbackTimestampLen || len(buf)%4 != 0 {
+		return nil, fmt.Errorf("%w: length %d", ErrMalformedFeedback, len(buf))
+	}
+	// SCReAM locates the report timestamp at length*4, which must be the last
+	// word of the packet.
+	if int(binary.BigEndian.Uint16(buf[2:4]))*4 != len(buf)-feedbackTimestampLen {
+		return nil, fmt.Errorf("%w: length field %d does not match %d octets",
+			ErrMalformedFeedback, binary.BigEndian.Uint16(buf[2:4]), len(buf))
+	}
+
+	end := len(buf) - feedbackTimestampLen
+	kept := make([]byte, feedbackHeaderLen, len(buf))
+	copy(kept, buf[:feedbackHeaderLen])
+	dropped := false
+	for ptr := feedbackHeaderLen; ptr != end; {
+		if ptr+feedbackBlockHeaderLen > end {
+			return nil, fmt.Errorf("%w: truncated report block at octet %d", ErrMalformedFeedback, ptr)
+		}
+		numReports := int(binary.BigEndian.Uint16(buf[ptr+6 : ptr+8]))
+		blockLen := feedbackBlockHeaderLen + 2*numReports
+		if numReports%2 == 1 {
+			// odd number of metric blocks is zero padded to a whole word
+			blockLen += 2
+		}
+		if ptr+blockLen > end {
+			return nil, fmt.Errorf("%w: report block at octet %d claims %d reports",
+				ErrMalformedFeedback, ptr, numReports)
+		}
+		if numReports == 0 {
+			dropped = true
+		} else {
+			kept = append(kept, buf[ptr:ptr+blockLen]...)
+		}
+		ptr += blockLen
+	}
+	if !dropped {
+		return buf, nil
+	}
+	if len(kept) == feedbackHeaderLen {
+		return nil, nil
+	}
+	kept = append(kept, buf[end:]...)
+	binary.BigEndian.PutUint16(kept[2:4], uint16(len(kept)/4-1))
+	return kept, nil
 }
 
 // GetTargetBitrate returns the target bitrate for the stream with ssrc.
