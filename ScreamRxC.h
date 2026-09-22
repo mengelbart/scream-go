@@ -19,6 +19,15 @@ typedef struct ScreamRx ScreamRx;
 
 #include <stdbool.h>
 
+/*
+ * Upper bound on the size of one standardized feedback packet.
+ * ScreamRx::createStandardizedFeedback fills a buffer until kMaxRtcpSize (900
+ * bytes, see ScreamRx.cpp) is reached and may append one more report block
+ * after that, so it never writes more than roughly kMaxRtcpSize + 128 bytes.
+ * It does not bounds check the buffer itself.
+ */
+#define SCREAM_RX_MAX_FEEDBACK_SIZE 2048
+
 ScreamRx* ScreamRxInit(uint32_t ssrc);
 void ScreamRxFree(ScreamRx*);
 
@@ -32,10 +41,12 @@ void ScreamRxReceive(ScreamRx* s,
                      bool isMark,
                      uint32_t timeStamp);
 bool ScreamRxIsFeedback(ScreamRx*, uint32_t);
+/* Returns false without writing to buf if capacity is too small */
 bool ScreamRxGetFeedback(ScreamRx*,
                          uint32_t,
                          bool,
                          unsigned char* buf,
+                         int capacity,
                          int* size);
 
 #ifdef __cplusplus

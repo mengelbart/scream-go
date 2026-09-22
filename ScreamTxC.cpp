@@ -16,6 +16,10 @@ void ScreamTxFree(ScreamV2Tx* s) {
   delete s;
 }
 
+int ScreamTxMaxStreams() {
+  return kMaxStreams;
+}
+
 void ScreamTxRegisterNewStream(ScreamV2Tx* s,
                                RtpQueueC* rtpQueue,
                                uint32_t ssrc,
@@ -38,8 +42,8 @@ void ScreamTxNewMediaFrame(ScreamV2Tx* s,
   s->newMediaFrame(time_ntp, ssrc, bytesRtp, isMarker);
 }
 
-float ScreamTxIsOkToTransmit(ScreamV2Tx* s, uint32_t time_ntp, uint32_t ssrc) {
-  return s->isOkToTransmit(time_ntp, ssrc);
+float ScreamTxIsOkToTransmit(ScreamV2Tx* s, uint32_t time_ntp, uint32_t* ssrc) {
+  return s->isOkToTransmit(time_ntp, *ssrc);
 }
 
 float ScreamTxAddTransmitted(ScreamV2Tx* s,
@@ -76,6 +80,7 @@ float ScreamTxGetTargetBitrate(ScreamV2Tx* s,
   return s->getTargetBitrate(time_ntp, ssrc);
 }
 
-void ScreamTxGetStatistics(ScreamV2Tx* s, float time_ntp, char* result) {
-  s->getStatistics(time_ntp, result);
+void ScreamTxGetStatistics(ScreamV2Tx* s, float time, char* result) {
+  result[0] = '\0';
+  s->getStatistics(time, result);
 }

@@ -22,6 +22,12 @@ typedef struct ScreamV2Tx ScreamV2Tx;
 ScreamV2Tx* ScreamTxInit();
 void ScreamTxFree(ScreamV2Tx*);
 
+/*
+ * Max number of streams one ScreamV2Tx accepts. registerNewStream writes into a
+ * fixed size array without bounds checking, so the caller must not exceed this.
+ */
+int ScreamTxMaxStreams();
+
 void ScreamTxRegisterNewStream(ScreamV2Tx*,
                                RtpQueueC*,
                                uint32_t,
@@ -30,7 +36,8 @@ void ScreamTxRegisterNewStream(ScreamV2Tx*,
                                float,
                                float);
 void ScreamTxNewMediaFrame(ScreamV2Tx*, uint32_t, uint32_t, int, bool);
-float ScreamTxIsOkToTransmit(ScreamV2Tx*, uint32_t, uint32_t);
+/* ssrc is an output, it is only written when the return value is 0.0 */
+float ScreamTxIsOkToTransmit(ScreamV2Tx*, uint32_t time_ntp, uint32_t* ssrc);
 float ScreamTxAddTransmitted(ScreamV2Tx*,
                              uint32_t,
                              uint32_t,
@@ -50,7 +57,15 @@ void ScreamTxIncomingStdFeedback(ScreamV2Tx*,
                                  bool);
 float ScreamTxGetTargetBitrate(ScreamV2Tx*, uint32_t, uint32_t);
 
-void ScreamTxGetStatistics(ScreamV2Tx*, float, char*);
+/*
+ * Size of the buffer ScreamTxGetStatistics writes into.
+ * ScreamTx::Statistics::getSummary (see ScreamTx.cpp) sprintf's a single fixed
+ * summary line of roughly 200 characters plus the log tag, and does not bounds
+ * check the buffer.
+ */
+#define SCREAM_TX_STATISTICS_SIZE 1024
+
+void ScreamTxGetStatistics(ScreamV2Tx*, float time, char* result);
 
 #ifdef __cplusplus
 }

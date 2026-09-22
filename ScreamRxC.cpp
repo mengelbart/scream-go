@@ -34,6 +34,11 @@ bool ScreamRxGetFeedback(ScreamRx* s,
                          uint32_t time_ntp,
                          bool isMark,
                          unsigned char* buf,
+                         int capacity,
                          int* size) {
+  *size = 0;
+  if (capacity < SCREAM_RX_MAX_FEEDBACK_SIZE) {
+    return false;
+  }
   return s->createStandardizedFeedback(time_ntp, isMark, buf, *size);
 }

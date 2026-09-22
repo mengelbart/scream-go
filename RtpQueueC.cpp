@@ -4,7 +4,7 @@
 
 #include "RtpQueueC.h"
 
-RtpQueueC* RtpQueueCInit(void* ctx) {
+RtpQueueC* RtpQueueCInit(uintptr_t ctx) {
   return new RtpQueueC(ctx);
 }
 
@@ -12,7 +12,7 @@ void RtpQueueCFree(RtpQueueC* q) {
   delete q;
 }
 
-RtpQueueC::RtpQueueC(void* ctx) {
+RtpQueueC::RtpQueueC(uintptr_t ctx) {
   this->ctx = ctx;
 }
 
