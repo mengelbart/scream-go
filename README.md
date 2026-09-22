@@ -17,6 +17,35 @@ header saying where it came from. They must not be edited by hand. The
 wrapper's own C++ files are the ones with a `C` suffix: `ScreamTxC`, `ScreamRxC`
 and `RtpQueueC`.
 
+## Configuration
+
+SCReAM's tuning knobs are exposed as functional options. `TxOption` covers the
+sender, `RxOption` the receiver and `StreamOption` an individual stream:
+
+```go
+tx := scream.NewTx(
+	scream.WithL4S(true),
+	scream.WithPacketPacing(true),
+	scream.WithCwndMinLow(5000),
+)
+defer tx.Close()
+
+err := tx.RegisterNewStream(
+	queue, ssrc, priority, minBitrate, startBitrate, maxBitrate,
+	scream.WithHysteresis(0.1),
+)
+if err != nil {
+	return err
+}
+```
+
+Settings that are meant to change while running are methods instead:
+`UpdateBitrateStream`, `SetTargetPriority`, `SetMaxTotalBitrate` and
+`SetMssListMinPacketsInFlight`.
+
+Note that packet pacing is disabled by default, which differs from SCReAM's own
+default. Pass `WithPacketPacing(true)` to enable it.
+
 ## Updating SCReAM
 
 The original SCReAM implementation is tracked as a Git submodule, which is the

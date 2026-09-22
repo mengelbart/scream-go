@@ -21,9 +21,13 @@ type Rx struct {
 
 // NewRx creates a new Rx instance. One Rx is created for each source SSRC.
 // Close must be called to free the resources held by the returned Rx.
-func NewRx(ssrc uint32) *Rx {
+func NewRx(ssrc uint32, opts ...RxOption) *Rx {
+	cfg := defaultRxConfig()
+	for _, opt := range opts {
+		opt(cfg)
+	}
 	return &Rx{
-		screamRx: C.ScreamRxInit(C.uint32_t(ssrc)),
+		screamRx: C.ScreamRxInit(C.uint32_t(ssrc), cfg.ackDiff, cfg.reportedRTPPackets),
 	}
 }
 
