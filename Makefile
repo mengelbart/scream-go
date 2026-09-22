@@ -1,15 +1,25 @@
-.PHONY: clean
+.PHONY: all test vendor check-vendor clean
 
-TARGET=scream
+# Upstream sources vendored into the package directory, see scripts/vendor-scream.sh
+VENDORED = RtpQueue.h ScreamRx.h ScreamTx.h ScreamRx.cpp ScreamTx.cpp \
+           ScreamV2Tx.cpp ScreamV2TxStream.cpp LICENSE_SCREAM
 
-$(TARGET): libscream.a
+all:
 	go build ./...
 
-libscream.a: scream/code/ScreamTx.o scream/code/ScreamV2TxStream.o scream/code/ScreamV2Tx.o ScreamTxC.o scream/code/ScreamRx.o ScreamRxC.o
-	ar r $@ $^
+test:
+	go test -race ./...
 
-%.o: %.cpp
-	g++ -Wno-overflow -Wno-write-strings -O2 -o $@ -c $^
+# Refresh the vendored SCReAM sources from the submodule. Run after bumping it.
+vendor:
+	./scripts/vendor-scream.sh
+
+# Fails if the vendored sources differ from what the submodule would produce.
+check-vendor:
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+	./scripts/vendor-scream.sh "$$tmp" >/dev/null; \
+	for f in $(VENDORED); do diff -u "$$f" "$$tmp/$$f" || exit 1; done; \
+	echo "vendored sources are up to date"
 
 clean:
-	rm -f *.o *.so *.a $(TARGET)
+	go clean

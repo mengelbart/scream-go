@@ -10,7 +10,7 @@
 #include "RtpQueueC.h"
 
 #ifdef __cplusplus
-#include "include/ScreamTx.h"
+#include "ScreamTx.h"
 extern "C" {
 #else
 typedef struct ScreamV2Tx ScreamV2Tx;

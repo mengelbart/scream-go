@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
-#include "include/ScreamRx.h"
+#include "ScreamRx.h"
 extern "C" {
 #else
 typedef struct ScreamRx ScreamRx;
