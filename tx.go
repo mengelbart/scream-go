@@ -62,7 +62,7 @@ type stream struct {
 // RTPQueue must be safe for use from whichever goroutine is calling the Tx at
 // the time.
 type Tx struct {
-	screamTx *C.ScreamV2Tx
+	screamTx *C.ScreamTxWrapper
 	streams  []stream
 	created  time.Time
 	// logTag is kept alive because SCReAM stores the pointer, see WithLogTag.

@@ -24,17 +24,27 @@ void ScreamTxDefaultConfig(ScreamTxConfig* c) {
   c->enableClockDriftCompensation = false;
 }
 
-ScreamV2Tx* ScreamTxInit(const ScreamTxConfig* c) {
-  return new ScreamV2Tx(c->lossBeta, c->ecnCeBeta, c->queueDelayTargetMin,
+ScreamTxWrapper* ScreamTxInit(const ScreamTxConfig* c) {
+  ScreamTxWrapper* wrapper = new ScreamTxWrapper();
+
+  wrapper->scream = new ScreamV2Tx(c->lossBeta, c->ecnCeBeta, c->queueDelayTargetMin,
                         c->cwnd, c->packetPacingHeadroom,
                         c->maxAdaptivePacingRateScale, c->bytesInFlightHeadRoom,
                         c->multiplicativeIncreaseScalefactor, c->isL4s,
                         c->maxWindowHeadroom, c->enableSbd,
                         c->enableClockDriftCompensation);
+
+  return wrapper;
 }
 
-void ScreamTxFree(ScreamV2Tx* s) {
-  delete s;
+void ScreamTxFree(ScreamTxWrapper* s) {
+  if (s->logFile != nullptr) {
+    s->scream->setDetailedLogFp(nullptr);
+    fclose(s->logFile);
+    s->logFile = nullptr;
+  }
+
+  delete s->scream;
 }
 
 int ScreamTxMaxStreams() {
@@ -49,7 +59,7 @@ int ScreamTxMaxMssListSize() {
   return kMssListSize;
 }
 
-void ScreamTxRegisterNewStream(ScreamV2Tx* s,
+void ScreamTxRegisterNewStream(ScreamTxWrapper* s,
                                RtpQueueC* rtpQueue,
                                uint32_t ssrc,
                                float priority,
@@ -62,127 +72,148 @@ void ScreamTxRegisterNewStream(ScreamV2Tx* s,
                                bool enableFrameSizeOverhead) {
   RtpQueueIface* rtpq = (RtpQueueIface*)rtpQueue;
 
-  s->registerNewStream(rtpq, ssrc, priority, minBitrate, startBitrate,
+  s->scream->registerNewStream(rtpq, ssrc, priority, minBitrate, startBitrate,
                        maxBitrate, maxRtpQueueDelay, isAdaptiveTargetRateScale,
                        hysteresis, enableFrameSizeOverhead);
 }
 
-void ScreamTxNewMediaFrame(ScreamV2Tx* s,
+void ScreamTxNewMediaFrame(ScreamTxWrapper* s,
                            uint32_t time_ntp,
                            uint32_t ssrc,
                            int bytesRtp,
                            bool isMarker) {
-  s->newMediaFrame(time_ntp, ssrc, bytesRtp, isMarker);
+  s->scream->newMediaFrame(time_ntp, ssrc, bytesRtp, isMarker);
 }
 
-float ScreamTxIsOkToTransmit(ScreamV2Tx* s, uint32_t time_ntp, uint32_t* ssrc) {
-  return s->isOkToTransmit(time_ntp, *ssrc);
+float ScreamTxIsOkToTransmit(ScreamTxWrapper* s, uint32_t time_ntp, uint32_t* ssrc) {
+  return s->scream->isOkToTransmit(time_ntp, *ssrc);
 }
 
-float ScreamTxAddTransmitted(ScreamV2Tx* s,
+float ScreamTxAddTransmitted(ScreamTxWrapper* s,
                              uint32_t time_ntp,
                              uint32_t ssrc,
                              int size,
                              uint16_t seqNr,
                              bool isMark) {
-  return s->addTransmitted(time_ntp, ssrc, size, seqNr, isMark);
+  return s->scream->addTransmitted(time_ntp, ssrc, size, seqNr, isMark);
 }
 
-void ScreamTxIncomingStdFeedbackBuf(ScreamV2Tx* s,
+void ScreamTxIncomingStdFeedbackBuf(ScreamTxWrapper* s,
                                     uint32_t time_ntp,
                                     unsigned char* buf,
                                     int size) {
-  s->incomingStandardizedFeedback(time_ntp, buf, size);
+  char str[100];
+  sprintf(str, "%1.4f", time_ntp / 65536.0f);
+  s->scream->setTimeString(str);
+  s->scream->incomingStandardizedFeedback(time_ntp, buf, size);
 }
 
-void ScreamTxIncomingStdFeedback(ScreamV2Tx* s,
+void ScreamTxIncomingStdFeedback(ScreamTxWrapper* s,
                                  uint32_t time_ntp,
                                  int streamId,
                                  uint32_t timestamp,
                                  uint16_t seqNr,
                                  uint8_t ceBits,
                                  bool isLast) {
-  s->incomingStandardizedFeedback(time_ntp, streamId, timestamp, seqNr, ceBits,
+  char str[100];
+  sprintf(str, "%1.4f", time_ntp / 65536.0f);
+  s->scream->setTimeString(str);
+  s->scream->incomingStandardizedFeedback(time_ntp, streamId, timestamp, seqNr, ceBits,
                                   isLast);
 }
 
-float ScreamTxGetTargetBitrate(ScreamV2Tx* s,
+float ScreamTxGetTargetBitrate(ScreamTxWrapper* s,
                                uint32_t time_ntp,
                                uint32_t ssrc) {
-  return s->getTargetBitrate(time_ntp, ssrc);
+  return s->scream->getTargetBitrate(time_ntp, ssrc);
 }
 
-void ScreamTxEnablePacketPacing(ScreamV2Tx* s, bool enable) {
-  s->enablePacketPacing(enable);
+void ScreamTxEnablePacketPacing(ScreamTxWrapper* s, bool enable) {
+  s->scream->enablePacketPacing(enable);
 }
 
-void ScreamTxEnableRelaxedPacing(ScreamV2Tx* s, bool enable) {
-  s->enableRelaxedPacing(enable);
+void ScreamTxEnableRelaxedPacing(ScreamTxWrapper* s, bool enable) {
+  s->scream->enableRelaxedPacing(enable);
 }
 
-void ScreamTxSetEnableCyclicPacing(ScreamV2Tx* s, bool enable) {
-  s->setEnableCyclicPacing(enable);
+void ScreamTxSetEnableCyclicPacing(ScreamTxWrapper* s, bool enable) {
+  s->scream->setEnableCyclicPacing(enable);
 }
 
-void ScreamTxSetCwndMin(ScreamV2Tx* s, int value) {
-  s->setCwndMin(value);
+void ScreamTxSetCwndMin(ScreamTxWrapper* s, int value) {
+  s->scream->setCwndMin(value);
 }
 
-void ScreamTxAutoTuneMinCwnd(ScreamV2Tx* s, bool enable) {
-  s->autoTuneMinCwnd(enable);
+void ScreamTxAutoTuneMinCwnd(ScreamTxWrapper* s, bool enable) {
+  s->scream->autoTuneMinCwnd(enable);
 }
 
-void ScreamTxSetEnableRatePolicerProtection(ScreamV2Tx* s, bool enable) {
-  s->isEnableRatePolicerProtection(enable);
+void ScreamTxSetDetailedLog(ScreamTxWrapper* s, char* filename) {
+  if (s->logFile != nullptr) {
+    s->scream->setDetailedLogFp(nullptr);
+    fclose(s->logFile);
+    s->logFile = nullptr;
+  }
+
+  if (filename != nullptr) {
+    s->logFile = fopen(filename, "w");
+    if (s->logFile != nullptr) {
+      s->scream->setDetailedLogFp(s->logFile);
+    }
+  }
 }
 
-void ScreamTxSetExpFeature(ScreamV2Tx* s, int value) {
-  s->setExpFeature(value);
+void ScreamTxSetEnableRatePolicerProtection(ScreamTxWrapper* s, bool enable) {
+  s->scream->isEnableRatePolicerProtection(enable);
 }
 
-void ScreamTxSetPostCongestionDelayRtts(ScreamV2Tx* s, int value) {
-  s->setPostCongestionDelayRtts(value);
+void ScreamTxSetExpFeature(ScreamTxWrapper* s, int value) {
+  s->scream->setExpFeature(value);
 }
 
-void ScreamTxSetReorderTime(ScreamV2Tx* s, float value) {
-  s->setReorderTime(value);
+void ScreamTxSetPostCongestionDelayRtts(ScreamTxWrapper* s, int value) {
+  s->scream->setPostCongestionDelayRtts(value);
 }
 
-void ScreamTxSetEnableRateUpdate(ScreamV2Tx* s, bool enable) {
-  s->setEnableRateUpdate(enable);
+void ScreamTxSetReorderTime(ScreamTxWrapper* s, float value) {
+  s->scream->setReorderTime(value);
 }
 
-void ScreamTxSetLogTag(ScreamV2Tx* s, char* logTag) {
-  s->setLogTag(logTag);
+void ScreamTxSetEnableRateUpdate(ScreamTxWrapper* s, bool enable) {
+  s->scream->setEnableRateUpdate(enable);
 }
 
-void ScreamTxSetMaxTotalBitrate(ScreamV2Tx* s, float bitrate) {
-  s->setMaxTotalBitrate(bitrate);
+void ScreamTxSetLogTag(ScreamTxWrapper* s, char* logTag) {
+  s->scream->setLogTag(logTag);
 }
 
-bool ScreamTxSetMssListMinPacketsInFlight(ScreamV2Tx* s,
+void ScreamTxSetMaxTotalBitrate(ScreamTxWrapper* s, float bitrate) {
+  s->scream->setMaxTotalBitrate(bitrate);
+}
+
+bool ScreamTxSetMssListMinPacketsInFlight(ScreamTxWrapper* s,
                                           int* mssList,
                                           int nMssListItems,
                                           int minPacketsInFlight) {
   if (nMssListItems < 0 || nMssListItems > kMssListSize) {
     return false;
   }
-  s->setMssListMinPacketsInFlight(mssList, nMssListItems, minPacketsInFlight);
+  s->scream->setMssListMinPacketsInFlight(mssList, nMssListItems, minPacketsInFlight);
   return true;
 }
 
-void ScreamTxUpdateBitrateStream(ScreamV2Tx* s,
+void ScreamTxUpdateBitrateStream(ScreamTxWrapper* s,
                                  uint32_t ssrc,
                                  float minBitrate,
                                  float maxBitrate) {
-  s->updateBitrateStream(ssrc, minBitrate, maxBitrate);
+  s->scream->updateBitrateStream(ssrc, minBitrate, maxBitrate);
 }
 
-void ScreamTxSetTargetPriority(ScreamV2Tx* s, uint32_t ssrc, float priority) {
-  s->setTargetPriority(ssrc, priority);
+void ScreamTxSetTargetPriority(ScreamTxWrapper* s, uint32_t ssrc, float priority) {
+  s->scream->setTargetPriority(ssrc, priority);
 }
 
-void ScreamTxGetStatistics(ScreamV2Tx* s, float time, char* result) {
+void ScreamTxGetStatistics(ScreamTxWrapper* s, float time, char* result) {
   result[0] = '\0';
-  s->getStatistics(time, result);
+  s->scream->getStatistics(time, result);
 }

@@ -9,6 +9,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "RtpQueueC.h"
 
@@ -40,8 +41,19 @@ typedef struct ScreamTxConfig {
 
 void ScreamTxDefaultConfig(ScreamTxConfig*);
 
-ScreamV2Tx* ScreamTxInit(const ScreamTxConfig*);
-void ScreamTxFree(ScreamV2Tx*);
+// 
+
+/*
+ * ScreamTxWrapper wraps a ScreamV2Tx and its log file pointer, so that the C 
+ * API can manage both.
+ */
+typedef struct ScreamTxWrapper {
+  ScreamV2Tx* scream;
+  FILE* logFile;
+} ScreamTxWrapper;
+
+ScreamTxWrapper* ScreamTxInit(const ScreamTxConfig*);
+void ScreamTxFree(ScreamTxWrapper*);
 
 /*
  * Max number of streams one ScreamV2Tx accepts. registerNewStream writes into a
@@ -58,7 +70,7 @@ float ScreamTxDefaultMaxRtpQueueDelay();
  */
 int ScreamTxMaxMssListSize();
 
-void ScreamTxRegisterNewStream(ScreamV2Tx*,
+void ScreamTxRegisterNewStream(ScreamTxWrapper*,
                                RtpQueueC*,
                                uint32_t ssrc,
                                float priority,
@@ -69,56 +81,57 @@ void ScreamTxRegisterNewStream(ScreamV2Tx*,
                                bool isAdaptiveTargetRateScale,
                                float hysteresis,
                                bool enableFrameSizeOverhead);
-void ScreamTxNewMediaFrame(ScreamV2Tx*, uint32_t, uint32_t, int, bool);
+void ScreamTxNewMediaFrame(ScreamTxWrapper*, uint32_t, uint32_t, int, bool);
 /* ssrc is an output, it is only written when the return value is 0.0 */
-float ScreamTxIsOkToTransmit(ScreamV2Tx*, uint32_t time_ntp, uint32_t* ssrc);
-float ScreamTxAddTransmitted(ScreamV2Tx*,
+float ScreamTxIsOkToTransmit(ScreamTxWrapper*, uint32_t time_ntp, uint32_t* ssrc);
+float ScreamTxAddTransmitted(ScreamTxWrapper*,
                              uint32_t,
                              uint32_t,
                              int,
                              uint16_t,
                              bool);
-void ScreamTxIncomingStdFeedbackBuf(ScreamV2Tx*,
+void ScreamTxIncomingStdFeedbackBuf(ScreamTxWrapper*,
                                     uint32_t,
                                     unsigned char*,
                                     int size);
-void ScreamTxIncomingStdFeedback(ScreamV2Tx*,
+void ScreamTxIncomingStdFeedback(ScreamTxWrapper*,
                                  uint32_t,
                                  int,
                                  uint32_t,
                                  uint16_t,
                                  uint8_t,
                                  bool);
-float ScreamTxGetTargetBitrate(ScreamV2Tx*, uint32_t, uint32_t);
+float ScreamTxGetTargetBitrate(ScreamTxWrapper*, uint32_t, uint32_t);
 
 /*
  * Settings applied after construction. Those that SCReAM reads continuously
  * can also be changed while running.
  */
-void ScreamTxEnablePacketPacing(ScreamV2Tx*, bool);
-void ScreamTxEnableRelaxedPacing(ScreamV2Tx*, bool);
-void ScreamTxSetEnableCyclicPacing(ScreamV2Tx*, bool);
-void ScreamTxSetCwndMin(ScreamV2Tx*, int);
-void ScreamTxAutoTuneMinCwnd(ScreamV2Tx*, bool);
-void ScreamTxSetEnableRatePolicerProtection(ScreamV2Tx*, bool);
-void ScreamTxSetExpFeature(ScreamV2Tx*, int);
-void ScreamTxSetPostCongestionDelayRtts(ScreamV2Tx*, int);
-void ScreamTxSetReorderTime(ScreamV2Tx*, float);
-void ScreamTxSetEnableRateUpdate(ScreamV2Tx*, bool);
-/* SCReAM stores the pointer without copying, it must outlive the ScreamV2Tx */
-void ScreamTxSetLogTag(ScreamV2Tx*, char*);
-void ScreamTxSetMaxTotalBitrate(ScreamV2Tx*, float);
+void ScreamTxEnablePacketPacing(ScreamTxWrapper*, bool);
+void ScreamTxEnableRelaxedPacing(ScreamTxWrapper*, bool);
+void ScreamTxSetEnableCyclicPacing(ScreamTxWrapper*, bool);
+void ScreamTxSetCwndMin(ScreamTxWrapper*, int);
+void ScreamTxAutoTuneMinCwnd(ScreamTxWrapper*, bool);
+void ScreamTxSetDetailedLog(ScreamTxWrapper*, char*);
+void ScreamTxSetEnableRatePolicerProtection(ScreamTxWrapper*, bool);
+void ScreamTxSetExpFeature(ScreamTxWrapper*, int);
+void ScreamTxSetPostCongestionDelayRtts(ScreamTxWrapper*, int);
+void ScreamTxSetReorderTime(ScreamTxWrapper*, float);
+void ScreamTxSetEnableRateUpdate(ScreamTxWrapper*, bool);
+/* SCReAM stores the pointer without copying, it must outlive the ScreamTxWrapper */
+void ScreamTxSetLogTag(ScreamTxWrapper*, char*);
+void ScreamTxSetMaxTotalBitrate(ScreamTxWrapper*, float);
 /* Returns false if nMssListItems exceeds ScreamTxMaxMssListSize */
-bool ScreamTxSetMssListMinPacketsInFlight(ScreamV2Tx*,
+bool ScreamTxSetMssListMinPacketsInFlight(ScreamTxWrapper*,
                                           int* mssList,
                                           int nMssListItems,
                                           int minPacketsInFlight);
 
-void ScreamTxUpdateBitrateStream(ScreamV2Tx*,
+void ScreamTxUpdateBitrateStream(ScreamTxWrapper*,
                                  uint32_t ssrc,
                                  float minBitrate,
                                  float maxBitrate);
-void ScreamTxSetTargetPriority(ScreamV2Tx*, uint32_t ssrc, float priority);
+void ScreamTxSetTargetPriority(ScreamTxWrapper*, uint32_t ssrc, float priority);
 
 /*
  * Size of the buffer ScreamTxGetStatistics writes into.
@@ -128,7 +141,7 @@ void ScreamTxSetTargetPriority(ScreamV2Tx*, uint32_t ssrc, float priority);
  */
 #define SCREAM_TX_STATISTICS_SIZE 1024
 
-void ScreamTxGetStatistics(ScreamV2Tx*, float time, char* result);
+void ScreamTxGetStatistics(ScreamTxWrapper*, float time, char* result);
 
 #ifdef __cplusplus
 }

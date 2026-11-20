@@ -144,6 +144,17 @@ func WithAutoTuneMinCwnd(enabled bool) TxOption {
 	}
 }
 
+// WithDetailedLog enables detailed per-ACK logging to the given file path.
+func WithDetailedLog(filePath string) TxOption {
+	return func(c *txConfig) {
+		c.post = append(c.post, func(t *Tx) {
+			cFilePath := C.CString(filePath)
+			defer C.free(unsafe.Pointer(cFilePath))
+			C.ScreamTxSetDetailedLog(t.screamTx, cFilePath)
+		})
+	}
+}
+
 // WithRatePolicerProtection enables protection against rate policers.
 func WithRatePolicerProtection(enabled bool) TxOption {
 	return func(c *txConfig) {
