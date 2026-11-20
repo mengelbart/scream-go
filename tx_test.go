@@ -140,7 +140,7 @@ func TestTxOptionsReachSCReAM(t *testing.T) {
 		WithLogTag("tag-under-test"),
 		WithL4S(true),
 		WithPacketPacing(true),
-		WithCwndMinLow(5000),
+		WithCwndMin(5000),
 		WithInitialCwnd(20000),
 		WithQueueDelayTargetMin(0.15),
 		WithClockDriftCompensation(true),

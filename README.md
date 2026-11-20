@@ -26,7 +26,7 @@ sender, `RxOption` the receiver and `StreamOption` an individual stream:
 tx := scream.NewTx(
 	scream.WithL4S(true),
 	scream.WithPacketPacing(true),
-	scream.WithCwndMinLow(5000),
+	scream.WithCwndMin(5000),
 )
 defer tx.Close()
 

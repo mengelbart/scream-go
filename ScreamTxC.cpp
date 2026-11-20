@@ -124,24 +124,20 @@ void ScreamTxSetEnableCyclicPacing(ScreamV2Tx* s, bool enable) {
   s->setEnableCyclicPacing(enable);
 }
 
-void ScreamTxSetCwndMinLow(ScreamV2Tx* s, int value) {
-  s->setCwndMinLow(value);
+void ScreamTxSetCwndMin(ScreamV2Tx* s, int value) {
+  s->setCwndMin(value);
 }
 
 void ScreamTxAutoTuneMinCwnd(ScreamV2Tx* s, bool enable) {
   s->autoTuneMinCwnd(enable);
 }
 
-void ScreamTxSetEnableAdaptiveWindowHeadroom(ScreamV2Tx* s, bool enable) {
-  s->isEnableAdaptiveWindowHeadroom(enable);
-}
-
 void ScreamTxSetEnableRatePolicerProtection(ScreamV2Tx* s, bool enable) {
   s->isEnableRatePolicerProtection(enable);
 }
 
-void ScreamTxSetSchedulingJitterMargin(ScreamV2Tx* s, float value) {
-  s->setSchedulingJitterMargin(value);
+void ScreamTxSetExpFeature(ScreamV2Tx* s, int value) {
+  s->setExpFeature(value);
 }
 
 void ScreamTxSetPostCongestionDelayRtts(ScreamV2Tx* s, int value) {
