@@ -1,5 +1,5 @@
 // Vendored from https://github.com/EricssonResearch/scream.git
-// commit fe00388b1c6b2ea9242a9a3a2910d04a6d52e728, code/RtpQueue.h
+// commit 3979992dba615f5f5ec1dce466c3fa2b301cd00a, code/RtpQueue.h
 //
 // Copyright (c) 2015, Ericsson AB. All rights reserved.
 // Licensed under BSD-2-Clause, see LICENSE_SCREAM.

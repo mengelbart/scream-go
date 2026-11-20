@@ -124,12 +124,12 @@ func WithCyclicPacing(enabled bool) TxOption {
 	}
 }
 
-// WithCwndMinLow sets the lower bound on the minimum congestion window in
+// WithCwndMin sets the lower bound on the minimum congestion window in
 // bytes.
-func WithCwndMinLow(cwnd int) TxOption {
+func WithCwndMin(cwnd int) TxOption {
 	return func(c *txConfig) {
 		c.post = append(c.post, func(t *Tx) {
-			C.ScreamTxSetCwndMinLow(t.screamTx, C.int(cwnd))
+			C.ScreamTxSetCwndMin(t.screamTx, C.int(cwnd))
 		})
 	}
 }
@@ -144,15 +144,6 @@ func WithAutoTuneMinCwnd(enabled bool) TxOption {
 	}
 }
 
-// WithAdaptiveWindowHeadroom enables adaptive congestion window headroom.
-func WithAdaptiveWindowHeadroom(enabled bool) TxOption {
-	return func(c *txConfig) {
-		c.post = append(c.post, func(t *Tx) {
-			C.ScreamTxSetEnableAdaptiveWindowHeadroom(t.screamTx, C.bool(enabled))
-		})
-	}
-}
-
 // WithRatePolicerProtection enables protection against rate policers.
 func WithRatePolicerProtection(enabled bool) TxOption {
 	return func(c *txConfig) {
@@ -162,11 +153,10 @@ func WithRatePolicerProtection(enabled bool) TxOption {
 	}
 }
 
-// WithSchedulingJitterMargin sets the margin that absorbs scheduling jitter.
-func WithSchedulingJitterMargin(margin float64) TxOption {
+func WithExpFeature(value int) TxOption {
 	return func(c *txConfig) {
 		c.post = append(c.post, func(t *Tx) {
-			C.ScreamTxSetSchedulingJitterMargin(t.screamTx, C.float(margin))
+			C.ScreamTxSetExpFeature(t.screamTx, C.int(value))
 		})
 	}
 }

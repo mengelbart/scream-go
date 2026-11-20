@@ -1,5 +1,5 @@
 // Vendored from https://github.com/EricssonResearch/scream.git
-// commit fe00388b1c6b2ea9242a9a3a2910d04a6d52e728, code/ScreamTx.h
+// commit 3979992dba615f5f5ec1dce466c3fa2b301cd00a, code/ScreamTx.h
 //
 // Copyright (c) 2015, Ericsson AB. All rights reserved.
 // Licensed under BSD-2-Clause, see LICENSE_SCREAM.
@@ -77,8 +77,9 @@ extern "C" {
     static const float kPacketPacingHeadRoom = 1.5f;
     static const float kMaxAdaptivePacingRateScale = 1.5;
 
-    // Bytes in flight headroom
-    static const float kBytesInFlightHeadRoom = 2.0f;
+    // Bytes in flight headroom, a default value 1.2 gives a good performance
+    // For cases when SCReAM becomes CPU limited and cannot push more than a given bitrate
+    static const float kBytesInFlightHeadRoom = 1.2f;
     // A multiplicative increase factor, 0.05 means that CWND can increase at most 5% per RTT
     static const float kMultiplicativeIncreaseScalefactor = 0.05f;
     // Packet reordering margin
@@ -106,7 +107,7 @@ extern "C" {
     static const int kQueueDelayNormHistSizeSh = 50;
     static const int kQueueDelayFractionHistSize = 20;
     static const int kBytesInFlightHistSizeMax = 60;
-    static const int kRateUpDateSize = 4;
+    static const int kRateUpDateSize = 8;
     static const int kLossRateHistSize = 10;
     static const int kRelFrameSizeHistBins = 50;
     static const int kMaxBytesInFlightHistSize = 20;
@@ -424,13 +425,6 @@ extern "C" {
         float getQualityIndex(float time, float thresholdRate, float rttMin);
 
         /*
-        * Set lowest possible cwndMin
-        */
-        void setCwndMinLow(int aValue) {
-            cwndMinLow = aValue;
-        }
-
-        /*
         * Enable/disable rate update. This function is used with the
         * SCReAM BW test tool to avoid that the periodic bitrate reduction
         *  messes up the rate estimation
@@ -508,12 +502,10 @@ extern "C" {
         }
 
         /*
-        * Enable/disable adaptive window headroom
-        * Recommended for cases where it is preferred to get a stable bitrate for instance
-        * when the media encoder reacts slowly to rate changes.
+        * Set min congestion window
         */
-        void isEnableAdaptiveWindowHeadroom(bool val) {
-            enableAdaptiveWindowHeadroom = val;
+        void setCwndMin(int value) {
+            cwndMin = value;
         }
 
         /*
@@ -521,13 +513,6 @@ extern "C" {
         */
         void isEnableRatePolicerProtection(bool val) {
             enableRatePolicerProtection = val;
-        }
-
-        /*
-        * Set scheduling jitter margin
-        */
-        void setSchedulingJitterMargin(float value) {
-            schedulingJitterMargin = value;
         }
 
         /*
@@ -543,6 +528,13 @@ extern "C" {
         */
         void setEnableCyclicPacing(bool value) {
             enableCyclicPacing = value;
+        }
+
+        /*
+        * Set experimental features
+        */
+        void setExpFeature(int val) {
+            expFeature = val;
         }
 
     private:
@@ -618,13 +610,6 @@ extern "C" {
                 timeStampClockRate = aValue;
             }
 
-            /*
-            * Get the high percentile relative frame size
-            */
-            float getRelFrameSizeHigh() {
-                return relFrameSizeHigh;
-            }
-
             ScreamV2Tx* parent;
             RtpQueueIface* rtpQueue;      // RTP Packet queue
             uint32_t ssrc;            // SSRC of stream
@@ -649,6 +634,7 @@ extern "C" {
             float rateTransmitted;  // Transmitted rate
             float rateTransmittedAvg;// Transmitted rate
             float rateAcked;        // ACKed rate
+            float rateAckedMax;
             float rateLost;         // Lost packets (bit)rate
             float rateCe;           // Ce marked packets (bit)rate
             uint16_t hiSeqAck;      // Highest sequence number ACKed
@@ -672,6 +658,8 @@ extern "C" {
             float rateRtpAvg;
             float rateRtpHist[kRateUpDateSize];
             int rateUpdateHistPtr;
+            float rateAckedHist[2];
+            int rateAckedHistPtr;
             float targetRateScale;
             uint32_t numberOfUpdateRate;
 
@@ -695,12 +683,9 @@ extern "C" {
             float frameSizeAvg;
             float framePeriod;
             float rateAdjustFactor;
+            float frameSizeDev;
 
             float adaptivePacingRateScale;
-
-            float relFrameSizeHist[kRelFrameSizeHistBins];
-            float relFrameSizeHigh;
-            int nFrames;
 
             float rateShare;
             bool isMaxrate;
@@ -740,8 +725,12 @@ extern "C" {
         /*
         * Get total acked bitrate for all streams
         */
-        float getTotalAckedBitrate();
+        float getTotalRateAcked();
 
+        /*
+        * Get total max acked bitrate for all streams
+        */
+        float getTotalRateAckedMax();
         /*
         * Get total transmitted bitrate for all streams
         */
@@ -820,6 +809,11 @@ extern "C" {
         float getQueueDelayFraction();
 
         /*
+        * Calculate adaptive queueDelayTarget
+        */
+        void calculateQueueDelayTarget(uint32_t time_ntp);
+
+        /*
         * Get the mss
         */
         int getMss();
@@ -833,7 +827,6 @@ extern "C" {
         * Conditionally set loss event
         */
         void setLossEvent();
-
 
         /*
         * Variables for network congestion control
@@ -861,7 +854,6 @@ extern "C" {
         bool enableRateUpdate;
         bool isUseExtraDetailedLog;
         bool isEnableRelaxedPacing;
-        float schedulingJitterMargin;
         int postCongestionDelayRtts;
 
         float sRtt;
@@ -877,6 +869,8 @@ extern "C" {
         float queueDelay;
         float queueDelayFractionAvg;
         float queueDelayTarget;
+        float nRttsWithLargeQueueDelay;
+        int cwndRestoreValue;
 
         float queueDelaySbdVar;
         float queueDelaySbdMean;
@@ -884,10 +878,9 @@ extern "C" {
         float queueDelaySbdSkew;
 
         float queueDelayAvg;
+        float queueDelayAvgPrev;
         float queueDelayMax;
         float queueDelayMin;
-        float queueDelayMaxAvg;
-        float queueDelayMinAvg;
         float queueDelayMinLongAvg;
         float queueDelayShortAvg;
         float queueDelayLongAvg;
@@ -910,7 +903,6 @@ extern "C" {
 
         int cwnd; // congestion window
         int cwndMin;
-        int cwndMinLow;
 
         int cwndI; // congestion window inflexion point
         float cwndRatio;
@@ -927,7 +919,6 @@ extern "C" {
         bool isApplicationLimited;
         float bytesInFlightRatio;
         float windowHeadroom;
-        bool enableAdaptiveWindowHeadroom;
 
         int bytesMarkedThisRtt;
         int bytesDeliveredThisRtt;
@@ -959,7 +950,6 @@ extern "C" {
         float maxTotalBitrate;
         float rateTransmittedAvg;
 
-        float relFrameSizeHigh;
         bool isNewFrame;
 
         uint32_t paceInterval_ntp;
@@ -991,6 +981,8 @@ extern "C" {
         char timeString[100];
         char detailedLogExtraData[256];
 
+        int expFeature;
+
         bool isInitialized;
         uint32_t initTime_ntp;
         uint32_t lastCongestionDetectedT_ntp;
@@ -1014,6 +1006,7 @@ extern "C" {
         uint32_t lastBaseDelayRefreshT_ntp;
         uint32_t lastRateLimitT_ntp;
         uint32_t lastMssChange_ntp;
+        uint32_t lastQueueDelayTargetUpdateT_ntp;
     };
 }
 #endif
